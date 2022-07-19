@@ -1,5 +1,6 @@
 import numpy as np
 from itertools import combinations
+from more_itertools import locate
 
 from subspaceclustering.cluster.dbscan import dbscan
 
@@ -66,14 +67,15 @@ class subclu:
       Sk.clear()
       Ck.clear()
       for cand in cand_S_k_plus_1:
-        bestSubspace = self.find_min_cluster(cand, k)
+        bestSubspaces = self.find_min_cluster(cand, k)
         c_cand = []
-        for cluster in self.__clusters.get(bestSubspace):
-          points = self.get_cluster_members_values(cluster, cand)     
-          dbscan_instance = dbscan(points, self.__eps, self.__m)
-          dbscan_instance = dbscan_instance.process()
-          for cluster_in_higher_dim in dbscan_instance.get_clusters():
-            c_cand.append([cluster[i] for i in cluster_in_higher_dim])
+        for bestSubspace in bestSubspaces:
+          for cluster in self.__clusters.get(bestSubspace):
+            points = self.get_cluster_members_values(cluster, cand)     
+            dbscan_instance = dbscan(points, self.__eps, self.__m)
+            dbscan_instance = dbscan_instance.process()
+            for cluster_in_higher_dim in dbscan_instance.get_clusters():
+              c_cand.append([cluster[i] for i in cluster_in_higher_dim])
         if c_cand:
           Sk.append(cand.copy())
           Ck[tuple(cand)] = c_cand.copy()
@@ -110,7 +112,7 @@ class subclu:
   
   
   
-  def find_min_cluster(self, cand, k):
+  def find_min_cluster(self, cand, k, consider_all_bestsubspaces = False):
     cand_combinations = cand.copy()
     if k > 1:
       cand_combinations = list(combinations(cand, r=k))
@@ -123,8 +125,12 @@ class subclu:
         count_objects = count_objects + len(cluster)
       size.append(count_objects)
       
-    min_cluster_index = size.index(np.min(size))  #what if many equal min values
-    bestsubspace = cand_combinations[min_cluster_index]
+    if consider_all_bestsubspaces == False:
+      min_cluster_index = size.index(np.min(size))
+      bestsubspace = [cand_combinations[min_cluster_index]]
+    else:
+      min_clusters_indcies = list(locate(size, lambda a: a == np.min(size)))
+      bestsubspace = [cand_combinations[i] for i in min_clusters_indcies]
   
     return bestsubspace
      
