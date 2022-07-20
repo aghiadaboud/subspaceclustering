@@ -1,19 +1,27 @@
 import numpy as np
 from math import sqrt
 from itertools import combinations
-from subspaceclustering.cluster.dbscan import dbscan
+from ..cluster.dbscan import dbscan
+from ..cluster.kmeans import kmeans
+from ..cluster.center_initializer import kmeans_plusplus_initializer
+from ..cluster.clique import clique
+
 
 
 class fires:
 
 
-  def __init__(self, data, eps,  minpts, k, mu, minClu):
+  def __init__(self, data, mu, k, minClu, clustering_method, **kwargs):
     self.__data = data
-    self.__eps = eps
-    self.__minpts = minpts
-    self.__k = k
     self.__mu = mu
+    self.__k = k
     self.__minClu = minClu
+    self.__eps = kwargs.get('eps')  # parameter of dbscan
+    self.__minpts = kwargs.get('minpts')  # parameter of dbscan
+    self.__amount_centers = kwargs.get('amount_centers')  #parameter of kmeans
+    self.__intervals = kwargs.get('intervals')  #parameter of clique
+    self.__threshold = kwargs.get('threshold')  #parameter of clique
+    self.__clustering_method = kwargs.get('clustering_method', 'dbscan')
 
     self.__clusters = {}
     self.__pruned_C1 = []
@@ -81,9 +89,19 @@ class fires:
   def generate_base_clusters(self):
     for dimension in range(len(self.__data[0])):
       column = [row[dimension] for row in self.__data]
-      dbscan_instance = dbscan([[v] for v in column], self.__eps, self.__minpts)
-      dbscan_instance = dbscan_instance.process()
-      clusters = dbscan_instance.get_clusters()
+      if self.__clustering_method == 'dbscan':
+        dbscan_instance = dbscan([[v] for v in column], self.__eps, self.__minpts)
+        dbscan_instance = dbscan_instance.process()
+        clusters = dbscan_instance.get_clusters()
+      elif self.__clustering_method == 'kmeans':
+        initial_centers = kmeans_plusplus_initializer(self.__data, self.__amount_centers).initialize()
+        kmeans_instance = kmeans(self.__data, initial_centers)
+        kmeans_instance.process()
+        clusters = kmeans_instance.get_clusters()
+      elif self.__clustering_method == 'clique':
+        clique_instance = clique(self.__data, self.__intervals, self.__threshold)
+        clique_instance.process()
+        clusters = clique_instance.get_clusters()
       if clusters:
         for cluster in clusters:
           self.__unpruned_C1.append(cluster)
@@ -261,10 +279,20 @@ class fires:
       base_clusters = [self.__pruned_C1[i] for i in approximation]
       base_clusters_union = list(set().union(*base_clusters))
       points_in_new_subspace = self.get_cluster_members_values(base_clusters_union, features)
-      eps = self.adjust_density_threshold(len(base_clusters_union), len(features))
-      dbscan_instance = dbscan(points_in_new_subspace, eps, self.__minpts)
-      dbscan_instance = dbscan_instance.process()
-      subspace_clusters = dbscan_instance.get_clusters()
+      if self.__clustering_method == 'dbscan':
+        eps = self.adjust_density_threshold(len(base_clusters_union), len(features))
+        dbscan_instance = dbscan(points_in_new_subspace, eps, self.__minpts)
+        dbscan_instance = dbscan_instance.process()
+        subspace_clusters = dbscan_instance.get_clusters()
+      elif self.__clustering_method == 'kmeans':
+        initial_centers = kmeans_plusplus_initializer(points_in_new_subspace, self.__amount_centers).initialize()
+        kmeans_instance = kmeans(points_in_new_subspace, initial_centers)
+        kmeans_instance.process()
+        subspace_clusters = kmeans_instance.get_clusters()
+      elif self.__clustering_method == 'clique':
+        clique_instance = clique(points_in_new_subspace, self.__intervals, self.__threshold)
+        clique_instance.process()
+        subspace_clusters = clique_instance.get_clusters()
       if subspace_clusters:
         self.__clusters[tuple(features)] = subspace_clusters.copy()
 
