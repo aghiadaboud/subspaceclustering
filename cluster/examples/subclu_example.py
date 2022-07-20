@@ -6,9 +6,10 @@ sys.path.append(root_folder)
 print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!', sys.path)"""
 
 
-from subspaceclustering.cluster.subclu import subclu
-from subspaceclustering.utils import read_sample
-from subspaceclustering.samples.definitions import SIMPLE_SAMPLES
+from ..subclu import subclu
+from ...utils import read_sample
+from ...samples.definitions import SIMPLE_SAMPLES
+from ...samples.generator import generate_subspacedata
 
 
 def test():
@@ -20,10 +21,10 @@ def test():
   clusters = subclu_instance.get_clusters()
   for key, value in clusters.items():
    print(key, value)
-  
-  
-  
 
 
-  
+
+
+
+
 test()
