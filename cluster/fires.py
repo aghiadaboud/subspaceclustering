@@ -108,7 +108,10 @@ class fires:
     number_of_objects = 0
     for cluster in C1:
       number_of_objects = number_of_objects + len(cluster)
-    return number_of_objects / len(C1)
+    try:
+      return number_of_objects / len(C1)
+    except ZeroDivisionError:
+      print('no base clusters were found')
 
 
 
