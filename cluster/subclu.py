@@ -1,8 +1,7 @@
 import numpy as np
 from itertools import combinations
 from more_itertools import locate
-
-from subspaceclustering.cluster.dbscan import dbscan
+from pyclustering.cluster.dbscan import dbscan
 
 class subclu:
 
@@ -14,6 +13,7 @@ class subclu:
     self.__S1_indices = []  #set of 1-D subspaces containing clusters
     self.__C1 = {}  # set of all sets of clusters in 1-D subspaces
     self.__clusters = {}
+    self.__noise = {}
 
     self.__verify_arguments()
 
@@ -27,13 +27,16 @@ class subclu:
     if len(self.__data) == 0:
       raise ValueError("Input data is empty (size: '%d')." % len(self.__data))
 
-    if np.min(self.__data) < 0:
-      raise ValueError("All values should be greater or equal to 0.")
+    #if np.min(self.__data) < 0:
+      #raise ValueError("All values should be greater or equal to 0.")
 
 
 
   def get_clusters(self):
     return self.__clusters
+
+  def get_noise(self):
+    return self.__noise
 
 
 
@@ -52,8 +55,9 @@ class subclu:
       if subspace_clusters:
         self.__S1_indices.append(subspace)
         self.__C1[subspace] = subspace_clusters.copy()
-    self.__clusters = self.__C1.copy()
+        self.__noise[subspace] = dbscan_instance.get_noise()
 
+    self.__clusters = self.__C1.copy()
 
 
 
@@ -62,19 +66,20 @@ class subclu:
     Ck = self.__C1.copy()
     Sk = self.__S1_indices.copy()
     while Ck:
-      cand_S_k_plus_1 = self.generate_candidate_subspaces(Sk, k)
+      cand_S_k_plus_1 = subclu.generate_candidate_subspaces(Sk, k)
       Sk.clear()
       Ck.clear()
       for cand in cand_S_k_plus_1:
         bestSubspaces = self.find_min_cluster(cand, k)
         c_cand = []
         for bestSubspace in bestSubspaces:
-          for cluster in self.__clusters.get(bestSubspace):
-            points = self.get_cluster_members_values(cluster, cand)
+          for cluster in self.__clusters.get(bestSubspace, []):
+            points = self.get_points_values_in_subspace(cluster, cand)
             dbscan_instance = dbscan(points, self.__eps, self.__m)
             dbscan_instance = dbscan_instance.process()
             for cluster_in_higher_dim in dbscan_instance.get_clusters():
               c_cand.append([cluster[i] for i in cluster_in_higher_dim])
+        self.__noise[tuple(cand)] = dbscan_instance.get_noise()
         if c_cand:
           Sk.append(cand.copy())
           Ck[tuple(cand)] = c_cand.copy()
@@ -84,8 +89,8 @@ class subclu:
 
 
 
-
-  def generate_candidate_subspaces(self, Sk, k):
+  @staticmethod
+  def generate_candidate_subspaces(Sk, k):
     candSkplus1 = []
     if k == 1:
       sorted_combinations = list(combinations(Sk, r=2))
@@ -95,17 +100,17 @@ class subclu:
         for s2 in Sk:
           if (s1[:-1] == s2[:-1] and s1[-1] < s2[-1]):
             candSkplus1.append(s1.copy() + [s2[-1]])
-      self.prune_irrelevant_candidates_subspaces(candSkplus1, Sk, k)
+      subclu.prune_irrelevant_candidates_subspaces(candSkplus1, Sk, k)
     return candSkplus1
 
 
-
-  def prune_irrelevant_candidates_subspaces(self, candSkplus1, Sk, k):
+  @staticmethod
+  def prune_irrelevant_candidates_subspaces(candSkplus1, Sk, k):
     for cand in candSkplus1:
       sorted_combinations = list(combinations(cand, r=k))
       list_combinations = [list(c) for c in sorted_combinations]
       for subspace in list_combinations:
-        if subspace not in Sk:
+        if subspace not in Sk and cand in candSkplus1:
           candSkplus1.remove(cand)
 
 
@@ -119,7 +124,7 @@ class subclu:
     bestsubspace = ()
     for key in cand_combinations:
       count_objects = 0
-      clusters = self.__clusters.get(key)
+      clusters = self.__clusters.get(key, [])
       for cluster in clusters:
         count_objects = count_objects + len(cluster)
       size.append(count_objects)
@@ -135,7 +140,7 @@ class subclu:
 
 
 
-  def get_cluster_members_values(self, points, features):
+  def get_points_values_in_subspace(self, points, features):
     temp_data = np.array(self.__data)
     newValues = temp_data[np.ix_(points,features)]
     return newValues.tolist()

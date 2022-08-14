@@ -1,13 +1,17 @@
-from utils import read_sample
+from pyclustering.utils import read_sample
 
-from samples.definitions import FCPS_SAMPLES
+from pyclustering.samples.definitions import SIMPLE_SAMPLES
 import numpy as num
 import itertools
+import more_itertools
 import math
+import matplotlib.pyplot as plt
+
+
 
 
 class temp:
-  
+
     def __init__(self):
       x =1
     def test():
@@ -17,7 +21,7 @@ class temp:
         print(a[0])
 
     def test2(self):
-        sample = read_sample(FCPS_SAMPLES.SAMPLE_LSUN)
+        sample = read_sample(SIMPLE_SAMPLES.SAMPLE_SIMPLE1)
         print(sample)
         print(num.shape(sample))
         print([row[0] for row in sample])
@@ -133,10 +137,17 @@ class temp:
                     result.append(l)
         print(result)
 
-    def test13():
-        Y = num.arange(16).reshape(4, 4)
+    def test13(self):
+        Y = num.arange(25).reshape(5, 5)
         print(Y)
         print(Y[num.ix_([1, 2, 3], [1, 2, 3])])
+        print(Y[num.ix_([1, 3], [1, 3])])
+        Y[num.ix_([1, 3], [1, 3])] = num.arange(4).reshape(2, 2)
+        print(Y, num.shape(Y))
+        x = num.zeros((5,2)).reshape(5, 2)
+        Y[num.ix_(list(range(5)), [0, 1])] = x
+        print(Y, )
+
 
     def test14():
         a = [["a", "b", "c"], [1, 2, 3], [4, 5, 6], [7, 8, 9]]
@@ -226,10 +237,10 @@ class temp:
         f = h | g
         print(h, g)
         print(f)
-        
-        
-        
-        
+
+
+
+
     def test23(self):
         h = {}
         a = [[1, 2, 3, 4]]
@@ -239,15 +250,15 @@ class temp:
         print(h, list(h.keys()))
         g = list(h.values())
         print(g)
-     
-        
-     
+
+
+
     def test24():
       b = [[2, 3, 4], [7,8,9,7]]
       b.remove([7,8,9,7])
       print(b)
-      
-      
+
+
     def test25():
         h = {}
         a = [[1, 2, 3, 4]]
@@ -256,8 +267,8 @@ class temp:
         h[2] = b
         h.pop(2)
         print(h)
-      
-      
+
+
     def test26():
       a = [1, 2]
       b = [1, 2]
@@ -267,7 +278,7 @@ class temp:
       c.remove([1,2])
       print(c)
 
-    
+
     def test27(self):
       a = [1,2,3,4,5, 5]
       b = [2,3,4]
@@ -275,39 +286,39 @@ class temp:
       print(a.index(5))
       print(num.where(num.array(a) == 5)[0])
       print(set(a).difference(set(b)))
-    
-    
+
+
     def test28(self):
       a = [1,77, 5, 2,3, 78, 4,100, 5]
       b = sorted(a)[-4:]
       c = [a.index(i) for i in b]
       print(b)
       print(c)
-      
+
     def test29(self):
       a = [1,2,3]
       b = [4, 5, 2]
       print(list(set(a + b)))
-      
-      
+
+
     def test30(self):
       d = [[1,2,3,4], [2,3,4], [3,4,5,6,7], [5,77,9,10]]
       print(set.intersection(*map(set,d)))
-      
-      
+
+
     def test31(self):
       a = [1,3,2]
       b = 5
-      c = b  
+      c = b
       self.test32(a)
       b = 9
-      print(a, b, c)   
-      
-      
+      print(a, b, c)
+
+
     def test32(self, b):
       b.remove(2)
-   
-      
+
+
     def test33(self):
       a = [1,3,2, 5 , 7 ,8]
       for i in a:
@@ -315,14 +326,14 @@ class temp:
           a.remove(2)
         print(a)
         print(i)
-        
+
     def test34(self):
       a = [1,3,2, 5 , 7 ,8]
       for i in range(len(a)):
         print(i)
         a.pop(i)
         print(a[i])
-        
+
     def test35(self):
       lol = [[1,2,3,4], [2,3,4], [3,4,5,6,7], [5,77,9,10]]
       for i, l in enumerate(lol):
@@ -330,21 +341,21 @@ class temp:
         a = [0,0]
         lol[i] = a.copy()
       print(lol)
-      
+
     def test36(self):
-      lol = [[1, 1,2,3,4], [2,3,4], [3,4,5,6,7], [5,77,9,10]]  
+      lol = [[1, 1,2,3,4], [2,3,4], [3,4,5,6,7], [5,77,9,10]]
       union = set().union(*lol)
       print(union)
       print(list(union))
-      
-      
+
+
     def test37(self):
       l = [3, 77]
       for i in range(5):
         l.append(i)
         print(len(l) - 1)
       print(l)
-      
+
     def test38(self):
         h = {}
         a = [[1, 2, 3, 4]]
@@ -354,8 +365,8 @@ class temp:
         print(h)
         h[77] = h.pop(1)
         print(h)
-        
-        
+
+
     def test39(self):
       a = [1, 2, 3, 4]
       b = [[7,8,9,7]]
@@ -363,7 +374,7 @@ class temp:
       print(b)
       a.pop(1)
       print(b)
-      
+
     def test40(self):
       b = {}
       a = [1, 2, 2, 4]
@@ -378,8 +389,8 @@ class temp:
       print(b.keys())
       print(list(b.keys()))
       print(a)
-        
-      
+
+
     def test41(self):
       lol = [[1,2,3,4], [2,3,4, 4], [3,4,5,6,7], [5,77,9,10]]
       a = [1,3]
@@ -387,13 +398,13 @@ class temp:
       b[0].pop(0)
       print(b)
       print(lol)
-    
+
     def test42(self):
       a = [0, 2, 3]
-      b = itertools.combinations(a, r=2)   
+      b = itertools.combinations(a, r=2)
       print([list(y) for y in b])
       print(b)
-      
+
     def test43(self):
       b = {}
       a = [1, 2, 2, 4]
@@ -401,8 +412,8 @@ class temp:
       for i in range(len(b.get(2, []))):
         print('sdfsdf')
       print(b.get(2, []))
-      
-      
+
+
     def test44(self):
       a = [0, 2, 3]
       b = list(itertools.combinations(a, r=2))
@@ -413,13 +424,13 @@ class temp:
       for y in b:
         print('yo')
       print(b[2])
-      
+
     def test45(self):
       a = [0, 2]
       b = [0, 5]
       c = a.copy() + [b[-1]]
       print(a, b, c)
-      
+
     def test46(self):
       h = {}
       a = [1, 2, 3, 4]
@@ -428,23 +439,33 @@ class temp:
       h[2] = b
       print(list(h))
       print(h)
-    
+
     def test47(self):
       s = [5,77,9,10, 444]
       t = sorted(range(len(s)), key=lambda k: s[k])
       print(t)
       print([s[i] for i in t[-3:]])
-      
+
     def test48(self):
-      s = []
-      for i, v in enumerate(s):  
-        print(i, v)
+      s = [5,77,9,10, 444, 5, 77]
+      print(list(more_itertools.locate(s, lambda a: a == num.min(s))))
 
-    
+    def test49(self):
+      a = [0, 2, 3]
+      b = list(itertools.combinations(a, r=2))
+      c = [b[i] for i in [0, 2]]
+      print(c)
+
+    def test50(self):
+      print(num.random.randint(1, int(math.sqrt(math.sqrt(4000*32)))))
+      print(list(itertools.chain(range(50), range(70, 100))))
+      pass
+
+
 c = temp()
-c.test48()
+c.test50()
 
-    
-    
-    
-    
+
+
+
+
