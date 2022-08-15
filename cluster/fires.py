@@ -49,7 +49,7 @@ class Clustering_By_clique(Clustering_Method):
 
 class fires:
 
-  def __init__(self, data, mu, k, minClu, clustering_method: type[Clustering_Method]):
+  def __init__(self, data, mu, k, minClu, clustering_method: Clustering_Method):
     self.__data = data
     self.__mu = mu
     self.__k = k

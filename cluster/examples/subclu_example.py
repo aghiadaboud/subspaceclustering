@@ -15,6 +15,17 @@ import seaborn as sns
 
 
 
+def test():
+  sample, labels = generate_sample(50, 2, [[range(20), range(0,1), 20, 1, 0.1],
+                                            [(range(30, 50)), (range(1, 2)), 20, 1, 0.1]])
+  scale_and_save_data(sample, labels, 'test')
+
+  sample = read_sample("subspaceclustering/samples/test.data")
+  subclu_instance = subclu(sample, 0.3, 3)
+  subclu_instance.process()
+  clusters = subclu_instance.get_clusters()
+  visualize_clusters(sample, clusters, subclu_instance.get_noise())
+
 
 def cluster_3d_250n_3sc():
   """sample, labels = generate_sample(250, 3, [[tuple(chain(range(50), range(70, 100))), (0,2), 80, 2, 0.6],
@@ -156,11 +167,11 @@ def scale_and_save_data(data, labels, name):
 
   labels_filepath = "subspaceclustering/samples/"+name+"_labels.csv"
   pd.DataFrame(labels).to_csv(labels_filepath)
-  scaler = preprocessing.StandardScaler().fit(data)
-  sample_scaled = scaler.transform(data)
+  #scaler = preprocessing.StandardScaler().fit(data)
+  #sample_scaled = scaler.transform(data)
   data_filepath = "subspaceclustering/samples/"+name+".data"
   file = open(data_filepath, "w+")
-  for i in sample_scaled:
+  for i in data:
     for f in i:
      file.write("%f " % f)
     file.write("\n")
@@ -171,10 +182,10 @@ def scale_and_save_data(data, labels, name):
 def visualize_clusters(sample, clusters, noise):
   for subspace, list_of_clusters in clusters.items():
     print(subspace, list(map(sorted, list_of_clusters)), '\n')
-    """ visualizer = cluster_visualizer()
+    visualizer = cluster_visualizer()
     visualizer.append_clusters(list_of_clusters, sample)
     visualizer.append_cluster(noise.get(subspace, []), sample, marker = 'x')
-    visualizer.show()"""
+    visualizer.show()
     """visualizer = cluster_visualizer_multidim()
     visualizer.append_clusters(list_of_clusters, sample)
     visualizer.show()"""
@@ -208,7 +219,7 @@ def compute_eps(data, minpts):
   return eps_grid[silhouette_scores.index(np.max(silhouette_scores))]
 
 
-
+test()
 #cluster_3d_250n_3sc()
 #cluster_4d_500n_4sc()
 #cluster_8d_1000n_9sc()
