@@ -1,11 +1,10 @@
 import numpy as np
 from math import sqrt
 from itertools import combinations
-from pyclustering.cluster.dbscan import dbscan
-from pyclustering.cluster.kmeans import kmeans
-from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
+from functools import reduce
+from sklearn.cluster import DBSCAN
+from sklearn.cluster import KMeans
 from pyclustering.cluster.clique import clique
-
 
 
 class Clustering_Method:
@@ -13,15 +12,18 @@ class Clustering_Method:
     pass
 
 class Clustering_By_dbscan(Clustering_Method):
-  def __init__(self, eps, minpts):
+  def __init__(self, eps, minpts, distance_metric='euclidean'):
     self.__eps = eps
     self.__minpts = minpts
+    self.__distance_metric = distance_metric
   def process(self, data, new_eps = None):
     if new_eps is None:
-      dbscan_instance = dbscan(data, self.__eps, self.__minpts)
+      dbscan_instance = DBSCAN(eps=self.__eps, min_samples= self.__minpts,
+                               metric=self.__distance_metric, n_jobs=-1).fit(data)
     else:
-      dbscan_instance = dbscan(data, new_eps, self.__minpts)
-    return dbscan_instance.process()
+      dbscan_instance = DBSCAN(eps= new_eps, min_samples= self.__minpts,
+                               metric=self.__distance_metric, n_jobs=-1).fit(data)
+    return dbscan_instance
   def get_eps(self):
     return self.__eps
 
@@ -31,19 +33,26 @@ class Clustering_By_kmeans(Clustering_Method):
   def __init__(self, amount_centers):
     self.__amount_centers = amount_centers
   def process(self, data):
-    initial_centers = kmeans_plusplus_initializer(data, self.__amount_centers).initialize()
-    kmeans_instance = kmeans(data, initial_centers)
-    return kmeans_instance.process()
+    kmeans_instance = KMeans(n_clusters=self.__amount_centers, init='k-means++',
+                             n_init=10, max_iter=300, tol=0.0001, verbose=0,
+                             random_state=None, copy_x=True, algorithm='lloyd').fit(data)
+    return kmeans_instance
 
 
 
 class Clustering_By_clique(Clustering_Method):
-  def __init__(self, intervals, threshold):
-    self.__intervals = intervals
-    self.__threshold = threshold
+  def __init__(self, amount_intervals, density_threshold):
+    self.__intervals = amount_intervals
+    self.__threshold = density_threshold
+    self.labels_ = None
   def process(self, data):
-    clique_instance = clique(data, self.__intervals, self.__threshold)
-    return clique_instance.process()
+    list_of_points = data.tolist()
+    clique_instance = clique(list_of_points, self.__intervals,self.__threshold)
+    clusters = clique_instance.get_clusters()
+    self.labels_ = np.zeros(len(list_of_points),)-1
+    for i in range(len(clusters)):
+      self.labels_[clusters[i]] = i
+    return self
 
 
 
@@ -65,7 +74,6 @@ class fires:
     self.__best_merge_candidates = {}
     self.__best_merge_clusters = []
     self.__subspace_cluster_approximations = []
-
     self.__verify_arguments()
 
 
@@ -117,15 +125,13 @@ class fires:
 
 
   def generate_base_clusters(self):
-    for dimension in range(len(self.__data[0])):
-      column = [row[dimension] for row in self.__data]
-      clustering = self.__clustering_method.process([[v] for v in column])
-      clusters = clustering.get_clusters()
-      if clusters:
-        for cluster in clusters:
-          self.__unpruned_C1.append(cluster)
-          self.__cluster_to_dimension[len(self.__unpruned_C1) -1] = dimension
-
+    for dimension in range(len(self.__data[0,:])):
+      vector = self.__data[:,dimension].reshape(-1, 1)
+      clustering = self.__clustering_method.process(vector)
+      labels = clustering.labels_
+      for label in range(len(set(labels)) - (1 if -1 in labels else 0)):
+        self.__unpruned_C1.append(np.where(labels == label)[0])
+        self.__cluster_to_dimension[len(self.__unpruned_C1) -1] = dimension
 
 
 
@@ -142,21 +148,18 @@ class fires:
 
   @staticmethod
   def compute_s_avg(C1):
-    number_of_objects = 0
-    for cluster in C1:
-      number_of_objects = number_of_objects + len(cluster)
     try:
-      return number_of_objects / len(C1)
+      return sum(map(len, C1)) / len(C1)
     except ZeroDivisionError:
       print('no base clusters were found')
 
 
 
-
   def check_for_base_clusters_splits(self):
-    two_thirds_of_s_avg = 2 * self.compute_s_avg(self.__pruned_C1) / 3
+    two_thirds_of_s_avg = 2 * fires.compute_s_avg(self.__pruned_C1) / 3
     for cluster in self.__pruned_C1:
-      if self.__pruned_C1.count(cluster) == 1:
+      list_of_intersections = list(map(lambda x: len(np.intersect1d(x, cluster)), self.__pruned_C1))
+      if list_of_intersections.count(len(cluster)) == 1:
         most_similar_clusters = self.compute_most_similar_cluster(cluster)
         #for msc_index in most_similar_clusters:
           #if(len(set(self.__pruned_C1[msc_index]) & set(cluster)) >= two_thirds_of_s_avg
@@ -172,7 +175,7 @@ class fires:
   def compute_most_similar_cluster(self, cluster):
     similarities = []
     for c in self.__pruned_C1:
-      if c == cluster:
+      if np.array_equal(c, cluster):
         similarities.append(-1)
       else:
         similarities.append(len(set(c) & set(cluster)))
@@ -185,19 +188,20 @@ class fires:
   def split_base_clusters(self):
     for cluster_index, clusters_intersection in self.__split_clusters.items():
       cluster = self.__pruned_C1[cluster_index].copy()
-      self.__pruned_C1[cluster_index] = clusters_intersection
-      self.__pruned_C1.append(list(set(cluster).difference(set(clusters_intersection))))
+      self.__pruned_C1[cluster_index] = np.array(clusters_intersection)
+      self.__pruned_C1.append(np.array(list(set(cluster).difference(set(clusters_intersection)))))
       self.__cluster_to_dimension[len(self.__pruned_C1) -1] = self.__cluster_to_dimension.get(cluster_index)
 
 
 
 
   def compute_k_most_similar_clusters(self):
-    if self.__k < len(self.__pruned_C1):
+    number_of_base_clusters = len(self.__pruned_C1)
+    if self.__k < number_of_base_clusters:
       similarities = []
       indices_of_sorted_similarities = []
-      for c1 in range(len(self.__pruned_C1)):
-        for c2 in range(len(self.__pruned_C1)):
+      for c1 in range(number_of_base_clusters):
+        for c2 in range(number_of_base_clusters):
           if c1 == c2:
             similarities.append(-1)
           else:
@@ -212,9 +216,10 @@ class fires:
 
 
   def compute_best_merge_candidates(self):
-    for i in range(len(self.__pruned_C1)):
+    number_base_clusters = len(self.__pruned_C1)
+    for i in range(number_base_clusters):
       self.__best_merge_candidates[i] = []
-    sorted_combinations = list(combinations(range(len(self.__pruned_C1)), r=2))
+    sorted_combinations = list(combinations(range(number_base_clusters), r=2))
     for combination in sorted_combinations:
       if (len(set(self.__k_most_similar_clusters.get(combination[0], [])) & set(self.__k_most_similar_clusters.get(combination[1], []))) >= self.__mu):
         self.__best_merge_candidates.get(combination[0]).append(combination[1])
@@ -226,24 +231,22 @@ class fires:
 
 
 
-
-
   def compute_best_merge_clusters(self):
     for cluster_index, bm_candidates in self.__best_merge_candidates.items():
       if len(bm_candidates) >= self.__minClu:
         self.__best_merge_clusters.append(cluster_index)
 
 
+
   def generate_subspace_cluster_approximations(self):
-    merged_list = []
+    merged_list = None
     sorted_combinations = list(combinations(self.__best_merge_clusters, r=2))
     for combination in sorted_combinations:
       if (combination[0] in self.__best_merge_candidates.get(combination[1])
           and combination[1] in self.__best_merge_candidates.get(combination[0])):
         merged_list = list(set(self.__best_merge_candidates.get(combination[0]) + self.__best_merge_candidates.get(combination[1])))
-        self.__subspace_cluster_approximations.append(merged_list.copy())
-
-
+        if merged_list not in self.__subspace_cluster_approximations:
+          self.__subspace_cluster_approximations.append(merged_list.copy())
 
 
 
@@ -292,27 +295,26 @@ class fires:
   def refine_cluster_approximations(self):
 
     for approximation in self.__subspace_cluster_approximations:
-      features = [self.__cluster_to_dimension.get(k) for k in approximation]
-      features = list(set(features))
+      features = list(set(self.__cluster_to_dimension.get(k) for k in approximation))
       features.sort()
       base_clusters = [self.__pruned_C1[i] for i in approximation]
-      base_clusters_union = list(set().union(*base_clusters))
+      base_clusters_union = reduce(np.union1d, base_clusters)
       points_in_new_subspace = self.get_cluster_members_values(base_clusters_union, features)
       if isinstance(self.__clustering_method, Clustering_By_dbscan):
         new_eps = fires.adjust_density_threshold(self.__clustering_method.get_eps(), len(base_clusters_union), len(features))
         clustering = self.__clustering_method.process(points_in_new_subspace, new_eps)
       else:
         clustering = self.__clustering_method.process(points_in_new_subspace)
-      subspace_clusters = clustering.get_clusters()
-      if subspace_clusters:
-        self.__clusters[tuple(features)] = subspace_clusters.copy()
+      labels = clustering.labels_
+      if 0 in labels:
+        self.__clusters[tuple(features)] = self.__clusters.get(tuple(features), [])
+        for label in range(len(set(labels)) - (1 if -1 in labels else 0)):
+          self.__clusters[tuple(features)].append(base_clusters_union[list(np.where(labels == label)[0])])
 
 
 
   def get_cluster_members_values(self, points, features):
-    temp_data = np.array(self.__data)
-    newValues = temp_data[np.ix_(points,features)]
-    return newValues.tolist()
+    return self.__data[np.ix_(points,features)]
 
   @staticmethod
   def adjust_density_threshold(eps, n, d):

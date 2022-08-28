@@ -1,4 +1,3 @@
-import subspaceclustering
 import numpy as np
 from itertools import chain
 from subspaceclustering.cluster.subclu import subclu
@@ -28,3 +27,6 @@ def cluster_8d_1000n_9sc():
   subclu_instance = subclu(sample, 0.2, 7)
   subclu_instance.process()
   clusters = subclu_instance.get_clusters()
+
+
+cluster_8d_1000n_9sc()

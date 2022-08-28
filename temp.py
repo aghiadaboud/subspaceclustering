@@ -6,6 +6,8 @@ import itertools
 import more_itertools
 import math
 import matplotlib.pyplot as plt
+from itertools import chain
+from collections import Counter
 
 
 
@@ -13,7 +15,7 @@ import matplotlib.pyplot as plt
 class temp:
 
     def __init__(self):
-      x =1
+      self.x = 1
     def test():
         a = [[1, 2, 3], [4, 5, 6]]
         print(a)
@@ -457,10 +459,7 @@ class temp:
       print(c)
 
     def test50(self):
-      print(num.random.randint(1, int(math.sqrt(math.sqrt(4000*32)))))
-      print(list(itertools.chain(range(50), range(70, 100))))
       pass
-
 
 c = temp()
 c.test50()

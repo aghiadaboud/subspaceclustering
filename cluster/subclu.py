@@ -1,14 +1,16 @@
 import numpy as np
 from itertools import combinations
 from more_itertools import locate
-from pyclustering.cluster.dbscan import dbscan
+from sklearn.cluster import DBSCAN
+
 
 class subclu:
 
-  def __init__(self, data, eps, m):
+  def __init__(self, data, eps, m, distance_metric = 'euclidean'):
     self.__data = data
     self.__eps = eps
     self.__m = m
+    self.__distance_metric = distance_metric
 
     self.__S1_indices = []  #set of 1-D subspaces containing clusters
     self.__C1 = {}  # set of all sets of clusters in 1-D subspaces
@@ -47,17 +49,19 @@ class subclu:
 
 
   def generate_all_1_D_clusters(self):
-    for subspace in range(len(self.__data[0])):
-      column = [row[subspace] for row in self.__data]
-      dbscan_instance = dbscan([[v] for v in column], self.__eps, self.__m)
-      dbscan_instance = dbscan_instance.process()
-      subspace_clusters = dbscan_instance.get_clusters()
-      if subspace_clusters:
-        self.__S1_indices.append(subspace)
-        self.__C1[subspace] = subspace_clusters.copy()
-        self.__noise[subspace] = dbscan_instance.get_noise()
-
-    self.__clusters = self.__C1.copy()
+    for dimension in range(len(self.__data[0,:])):
+      vector = self.__data[:,dimension].reshape(-1, 1)
+      dbscan_instance = DBSCAN(eps = self.__eps, min_samples = self.__m,
+                               metric=self.__distance_metric, algorithm='auto',
+                               n_jobs=-1).fit(vector)
+      labels = dbscan_instance.labels_
+      if 0 in labels:   # at least one cluster was found
+        self.__S1_indices.append(dimension)
+        self.__C1[dimension] = []
+        for label in range(len(set(labels)) - (1 if -1 in labels else 0)):
+           self.__C1.get(dimension).append(np.where(labels == label)[0])
+        self.__noise[dimension] = np.where(labels == -1)[0]
+    self.__clusters = self.__C1
 
 
 
@@ -73,18 +77,21 @@ class subclu:
         bestSubspaces = self.find_min_cluster(cand, k)
         c_cand = []
         for bestSubspace in bestSubspaces:
+          self.__noise[tuple(cand)] = []
           for cluster in self.__clusters.get(bestSubspace, []):
             points = self.get_points_values_in_subspace(cluster, cand)
-            dbscan_instance = dbscan(points, self.__eps, self.__m)
-            dbscan_instance = dbscan_instance.process()
-            for cluster_in_higher_dim in dbscan_instance.get_clusters():
-              c_cand.append([cluster[i] for i in cluster_in_higher_dim])
-        self.__noise[tuple(cand)] = dbscan_instance.get_noise()
+            dbscan_instance = DBSCAN(eps = self.__eps, min_samples = self.__m,
+                                     metric=self.__distance_metric, algorithm='auto',
+                                     n_jobs=-1).fit(points)
+            labels = dbscan_instance.labels_
+            for label in range(len(set(labels)) - (1 if -1 in labels else 0)):
+              c_cand.append(cluster[list(np.where(labels == label)[0])])
+            self.__noise.get(tuple(cand)).append(cluster[list(np.where(labels == -1)[0])])
         if c_cand:
           Sk.append(cand.copy())
           Ck[tuple(cand)] = c_cand.copy()
 
-      self.__clusters = self.__clusters | Ck.copy()
+      self.__clusters = self.__clusters | Ck.copy() #change this
       k = k + 1
 
 
@@ -115,7 +122,6 @@ class subclu:
 
 
 
-
   def find_min_cluster(self, cand, k, consider_all_bestsubspaces = False):
     cand_combinations = cand.copy()
     if k > 1:
@@ -123,11 +129,8 @@ class subclu:
     size = []
     bestsubspace = ()
     for key in cand_combinations:
-      count_objects = 0
       clusters = self.__clusters.get(key, [])
-      for cluster in clusters:
-        count_objects = count_objects + len(cluster)
-      size.append(count_objects)
+      size.append(sum(map(len, clusters)))
 
     if consider_all_bestsubspaces == False:
       min_cluster_index = size.index(np.min(size))
@@ -141,12 +144,7 @@ class subclu:
 
 
   def get_points_values_in_subspace(self, points, features):
-    temp_data = np.array(self.__data)
-    newValues = temp_data[np.ix_(points,features)]
-    return newValues.tolist()
-
-
-
+    return self.__data[np.ix_(points,features)]
 
 
 
