@@ -46,7 +46,5 @@ def generate_sample(n, d, sample_std, subspace_clusters = None):
     cluster_label = cluster_label + 1
     #plt.scatter(sample[:,0], sample[:,3])
     #plt.show()
-    plt.scatter(sample[:,0], sample[:,3])
-    plt.show()
 
   return (sample, labels)

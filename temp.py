@@ -8,6 +8,7 @@ import math
 import matplotlib.pyplot as plt
 from itertools import chain
 from collections import Counter
+from functools import reduce
 
 
 

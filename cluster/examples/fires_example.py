@@ -1,7 +1,10 @@
 import numpy as np
+from itertools import chain
 import csv
 from subspaceclustering.cluster.fires import *
 from subspaceclustering.utils.sample_generator import generate_sample
+
+
 
 
 
@@ -12,7 +15,7 @@ def cluster_2d_100n_2sc():
 
   samples = read_data('2d_100n_2sc')
   clustering_method = Clustering_By_dbscan(0.3, 5)
-  fires_instance = fires(samples, 2, 2, 2, clustering_method)
+  fires_instance = fires(samples, 1, 1, 2, clustering_method)
   fires_instance.process()
   print_clustering_info(fires_instance)
 
@@ -25,7 +28,22 @@ def cluster_3d_250n_3sc():
 
   samples = read_data('3d_250n_3sc')
   clustering_method = Clustering_By_dbscan(0.4, 6)
-  fires_instance = fires(samples, 1, 2, 2, clustering_method)
+  fires_instance = fires(samples, 1, 1, 1, clustering_method)
+  fires_instance.process()
+  print_clustering_info(fires_instance)
+
+
+
+
+
+def cluster_4d_500n_4sc():
+  """samples, labels = generate_sample(500, 4, 1, [[range(0,160, 2), (0, 3), 0.3], [range(180, 300), (1,2,3), 0.3],
+                                                [range(320, 400), (0, 2), 0.4], [range(425, 475), range(2, 3), 0.4]])
+  save_data(samples, labels, '4d_500n_4sc')"""
+
+  samples = read_data('4d_500n_4sc')
+  clustering_method = Clustering_By_dbscan(0.3, 6)
+  fires_instance = fires(samples, 2, 2, 1, clustering_method)
   fires_instance.process()
   print_clustering_info(fires_instance)
 
@@ -54,7 +72,7 @@ def cluster_32d_4000n_15sc():
 def cluster_3d_250n_3sc_kmeans():
   sample = read_sample("subspaceclustering/samples/3d_250n_3sc.data")
   clustering_method = cluster_3d_250n_3sc_kmeans()
-  fires_instance = fires(sample, 1, 2, 2, clustering_method)
+  fires_instance = fires(sample, 3, 1, 3, clustering_method)
   fires_instance.process()
   print_clustering_info(fires_instance)
 
@@ -73,10 +91,23 @@ def read_data(filename):
   return samples
 
 
+def save_data(samples, labels, filename):
+  with open('subspaceclustering/samples/'+filename+'.csv', 'w', newline='') as csvfile:
+      writer = csv.writer(csvfile)
+      for row in samples:
+          writer.writerow(row)
+
+  with open('subspaceclustering/samples/'+filename+'_labels.csv', 'w', newline='') as csvfile:
+      writer = csv.writer(csvfile)
+      for row in labels:
+          writer.writerow(row)
+
 
 def print_clustering_info(fires_instance):
-  print(list(map(sorted, fires_instance.get__pruned_C1())))
-  print(fires_instance.get_cluster_to_dimension())
+  for cluster_index, dimension in fires_instance.get_cluster_to_dimension().items():
+    print(cluster_index , dimension)
+    print(sorted(fires_instance.get__pruned_C1()[cluster_index]), '\n')
+
   print(fires_instance.get_k_most_similar_clusters())
   print(fires_instance.get__best_merge_candidates())
   print(fires_instance.get__best_merge_clusters())
@@ -85,9 +116,10 @@ def print_clustering_info(fires_instance):
   for subspace, list_of_clusters in clusters.items():
    print(subspace, list(map(sorted, list_of_clusters)))
 
-
-cluster_2d_100n_2sc()
+test()
+#cluster_2d_100n_2sc()
 #cluster_3d_250n_3sc()
+#cluster_4d_500n_4sc()
 #cluster_3d_250n_3sc_dbscan()
 #cluster_4d_500n_4sc()
 #cluster_8d_1000n_9sc()

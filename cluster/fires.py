@@ -1,6 +1,7 @@
 import numpy as np
 from math import sqrt
 from itertools import combinations
+from collections import Counter
 from functools import reduce
 from sklearn.cluster import DBSCAN
 from sklearn.cluster import KMeans
@@ -114,7 +115,6 @@ class fires:
     self.generate_base_clusters()
     self.prune_irrelevant_base_clusters()
     self.check_for_base_clusters_splits()
-    self.split_base_clusters()
     self.compute_k_most_similar_clusters()
     self.compute_best_merge_candidates()
     self.compute_best_merge_clusters()
@@ -137,13 +137,12 @@ class fires:
 
   def prune_irrelevant_base_clusters(self):
     _25_percent_of_s_avg = fires.compute_s_avg(self.__unpruned_C1) / 4
-    for i in range(len(self.__unpruned_C1)):
-      if len(self.__unpruned_C1[i]) >= _25_percent_of_s_avg:
-        self.__pruned_C1.append(self.__unpruned_C1[i])
+    for i, cluster in enumerate(self.__unpruned_C1):
+      if len(cluster) >= _25_percent_of_s_avg:
+        self.__pruned_C1.append(cluster)
         self.__cluster_to_dimension[len(self.__pruned_C1) -1] = self.__cluster_to_dimension.pop(i)
       else:
         self.__cluster_to_dimension.pop(i)
-
 
 
   @staticmethod
@@ -157,42 +156,26 @@ class fires:
 
   def check_for_base_clusters_splits(self):
     two_thirds_of_s_avg = 2 * fires.compute_s_avg(self.__pruned_C1) / 3
-    for cluster in self.__pruned_C1:
-      list_of_intersections = list(map(lambda x: len(np.intersect1d(x, cluster)), self.__pruned_C1))
-      if list_of_intersections.count(len(cluster)) == 1:
-        most_similar_clusters = self.compute_most_similar_cluster(cluster)
-        #for msc_index in most_similar_clusters:
-          #if(len(set(self.__pruned_C1[msc_index]) & set(cluster)) >= two_thirds_of_s_avg
-            # and set(cluster).difference(set(self.__pruned_C1[msc_index])) >= two_thirds_of_s_avg):
-        first_condition = len(set(self.__pruned_C1[most_similar_clusters]) & set(cluster)) >= two_thirds_of_s_avg
-        second_condition = len(set(cluster).difference(set(self.__pruned_C1[most_similar_clusters]))) >= two_thirds_of_s_avg
-        if(first_condition and second_condition):
-          self.__split_clusters[self.__pruned_C1.index(cluster)] = list(set(self.__pruned_C1[most_similar_clusters]) & set(cluster))
+    for i, cluster in enumerate(self.__pruned_C1):
+      most_similar_cluster = self.compute_most_similar_cluster(i, cluster)
+      intersection = np.intersect1d(self.__pruned_C1[most_similar_cluster],cluster)
+      difference = np.setdiff1d(cluster, self.__pruned_C1[most_similar_cluster])
+      if(len(intersection)>= two_thirds_of_s_avg and len(difference)>= two_thirds_of_s_avg):
+        self.__pruned_C1[i] = intersection
+        self.__pruned_C1.append(difference)
+        self.__cluster_to_dimension[len(self.__pruned_C1) -1] = self.__cluster_to_dimension.get(i)
+        #is this correct or should it be Top-Down check?
+        #self.check_for_base_clusters_splits()
+        #break
 
 
-
-
-  def compute_most_similar_cluster(self, cluster):
-    similarities = []
-    for c in self.__pruned_C1:
-      if np.array_equal(c, cluster):
-        similarities.append(-1)
-      else:
-        similarities.append(len(set(c) & set(cluster)))
-    #return np.where(np.array(similarities) == np.max(similarities))[0]
-    return similarities.index(np.max(similarities))
-
-
-
-
-  def split_base_clusters(self):
-    for cluster_index, clusters_intersection in self.__split_clusters.items():
-      cluster = self.__pruned_C1[cluster_index].copy()
-      self.__pruned_C1[cluster_index] = np.array(clusters_intersection)
-      self.__pruned_C1.append(np.array(list(set(cluster).difference(set(clusters_intersection)))))
-      self.__cluster_to_dimension[len(self.__pruned_C1) -1] = self.__cluster_to_dimension.get(cluster_index)
-
-
+  def compute_most_similar_cluster(self, cluster_index, cluster):
+    intersections = list(map(lambda x: len(np.intersect1d(x, cluster)), self.__pruned_C1))
+    intersections[cluster_index] = -1
+    arr = np.array(intersections)
+    mscs = np.where(arr == np.amax(arr))[0]
+    unique_of_msc = list(map(lambda v: len(np.setdiff1d(self.__pruned_C1[v], cluster)), mscs))
+    return mscs[unique_of_msc.index(min(unique_of_msc))]
 
 
   def compute_k_most_similar_clusters(self):
@@ -205,8 +188,9 @@ class fires:
           if c1 == c2:
             similarities.append(-1)
           else:
-            similarities.append(len(set(self.__pruned_C1[c1]) & set(self.__pruned_C1[c2])))
-
+            similarities.append(len(np.intersect1d(self.__pruned_C1[c1], self.__pruned_C1[c2])))
+        print('////////////', c1, similarities)
+        print('$$$$$$$$$$$', list(map(lambda v: len(np.setdiff1d(v, self.__pruned_C1[c1])), self.__pruned_C1)))
         indices_of_sorted_similarities = sorted(range(len(similarities)), key=lambda k: similarities[k])
         self.__k_most_similar_clusters[c1] = indices_of_sorted_similarities[-self.__k:]
         similarities.clear()
@@ -217,17 +201,13 @@ class fires:
 
   def compute_best_merge_candidates(self):
     number_base_clusters = len(self.__pruned_C1)
-    for i in range(number_base_clusters):
-      self.__best_merge_candidates[i] = []
     sorted_combinations = list(combinations(range(number_base_clusters), r=2))
     for combination in sorted_combinations:
-      if (len(set(self.__k_most_similar_clusters.get(combination[0], [])) & set(self.__k_most_similar_clusters.get(combination[1], []))) >= self.__mu):
+      if (len(set(self.__k_most_similar_clusters.get(combination[0])) & set(self.__k_most_similar_clusters.get(combination[1]))) >= self.__mu):
+        self.__best_merge_candidates[combination[0]] = self.__best_merge_candidates.get(combination[0], [])
         self.__best_merge_candidates.get(combination[0]).append(combination[1])
+        self.__best_merge_candidates[combination[1]] = self.__best_merge_candidates.get(combination[1], [])
         self.__best_merge_candidates.get(combination[1]).append(combination[0])
-
-    for key in list(self.__best_merge_candidates):
-      if self.__best_merge_candidates[key] == []:
-        self.__best_merge_candidates.pop(key)
 
 
 
@@ -245,7 +225,7 @@ class fires:
       if (combination[0] in self.__best_merge_candidates.get(combination[1])
           and combination[1] in self.__best_merge_candidates.get(combination[0])):
         merged_list = list(set(self.__best_merge_candidates.get(combination[0]) + self.__best_merge_candidates.get(combination[1])))
-        if merged_list not in self.__subspace_cluster_approximations:
+        if all(Counter(x) != Counter(merged_list) for x in self.__subspace_cluster_approximations):
           self.__subspace_cluster_approximations.append(merged_list.copy())
 
 
@@ -259,14 +239,15 @@ class fires:
       count_remaining_base_clusters = len(approximation)
       while (i < len(approximation) and len(approximation) > 1):
         if len(approximation) < count_remaining_base_clusters:
-          score_approximation = self.compute_quality_of_subspace_cluster_approximation(approximation)
           score_approximation_without_base_cluster = self.compute_quality_of_approximation_without_one_cluster(approximation)
           count_remaining_base_clusters = count_remaining_base_clusters - 1
 
-        l = [x for z,x in enumerate(score_approximation_without_base_cluster) if z!=i]
+        remaining_scores = [x for z,x in enumerate(score_approximation_without_base_cluster) if z!=i]
         if (score_approximation_without_base_cluster[i] > score_approximation
-            and all(v <= score_approximation_without_base_cluster[i] for v in l)):
+            and all(v <= score_approximation_without_base_cluster[i] for v in remaining_scores)):
           approximation.pop(i)
+          score_approximation = score_approximation_without_base_cluster[i]
+          i = 0
         else:
           i = i + 1
 
@@ -274,8 +255,9 @@ class fires:
 
   def compute_quality_of_subspace_cluster_approximation(self, approximation):
     cluster_dimensionality = len(approximation)
+    #cluster_dimensionality = len(set([self.__cluster_to_dimension.get(j) for j in approximation]))
     base_clusters_of_approximation = [self.__pruned_C1[i] for i in approximation]
-    cluster_size = len(set.intersection(*map(set,base_clusters_of_approximation)))
+    cluster_size = len(reduce(np.intersect1d, base_clusters_of_approximation))
     return sqrt(cluster_size) * cluster_dimensionality
 
 
@@ -319,7 +301,6 @@ class fires:
   @staticmethod
   def adjust_density_threshold(eps, n, d):
     return (eps * n) / (pow(n,(1/d)))
-
 
 
 
