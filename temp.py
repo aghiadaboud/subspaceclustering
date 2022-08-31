@@ -460,6 +460,8 @@ class temp:
       print(c)
 
     def test50(self):
+      h = num.array([2,5,1,9, 0,10])
+      print(num.argpartition(h, 2)[:2])
       pass
 
 c = temp()

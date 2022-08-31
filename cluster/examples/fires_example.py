@@ -6,6 +6,15 @@ from subspaceclustering.utils.sample_generator import generate_sample
 
 
 
+def test():
+  samples, labels = generate_sample(1000, 20, 1.5, [[range(180, 300), range(10), 0.2]])
+  #save_data(samples, labels, 'test')
+
+  #samples = read_data('test')
+  clustering_method = Clustering_By_dbscan(0.2, 6)
+  fires_instance = fires(samples, 2, 2, 2, clustering_method)
+  fires_instance.process()
+  print_clustering_info(fires_instance)
 
 
 def cluster_2d_100n_2sc():
@@ -108,10 +117,10 @@ def print_clustering_info(fires_instance):
     print(cluster_index , dimension)
     print(sorted(fires_instance.get__pruned_C1()[cluster_index]), '\n')
 
-  print(fires_instance.get_k_most_similar_clusters())
-  print(fires_instance.get__best_merge_candidates())
-  print(fires_instance.get__best_merge_clusters())
-  print(fires_instance.get__subspace_cluster_approximations())
+  print('k most similar clusters', '\n', fires_instance.get_k_most_similar_clusters())
+  print('best merge candidates', '\n',fires_instance.get__best_merge_candidates())
+  print('best merge clusters', '\n',fires_instance.get__best_merge_clusters())
+  print('subspace cluster approximations', '\n',fires_instance.get__subspace_cluster_approximations(), '\n')
   clusters = fires_instance.get_clusters()
   for subspace, list_of_clusters in clusters.items():
    print(subspace, list(map(sorted, list_of_clusters)))

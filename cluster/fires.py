@@ -178,22 +178,32 @@ class fires:
     return mscs[unique_of_msc.index(min(unique_of_msc))]
 
 
+
   def compute_k_most_similar_clusters(self):
-    number_of_base_clusters = len(self.__pruned_C1)
-    if self.__k < number_of_base_clusters:
-      similarities = []
-      indices_of_sorted_similarities = []
-      for c1 in range(number_of_base_clusters):
-        for c2 in range(number_of_base_clusters):
-          if c1 == c2:
-            similarities.append(-1)
+    if self.__k < len(self.__pruned_C1):
+      for i, cluster in enumerate(self.__pruned_C1):
+        self.__k_most_similar_clusters[i] = []
+        intersections = list(map(lambda x: len(np.intersect1d(x, cluster)), self.__pruned_C1))
+        differences = list(map(lambda v: len(np.setdiff1d(v, cluster)), self.__pruned_C1))
+        intersections[i] = -1
+        arr = np.array(intersections)
+        arr2 = np.array(differences)
+        counter = Counter(arr)
+        k = self.__k
+        while k > 0:
+          max_intersection = np.amax(arr)
+          number_max_intersection = counter[max_intersection]
+          if number_max_intersection == k:
+            self.__k_most_similar_clusters.get(i).extend(list(np.where(arr == max_intersection)[0]))
+            k = 0
+          elif number_max_intersection > k:
+            indices_max_intersections = np.where(arr == max_intersection)[0]
+            self.__k_most_similar_clusters.get(i).extend(list(indices_max_intersections[np.argpartition(arr2[indices_max_intersections], k)[:k]]))
+            k = 0
           else:
-            similarities.append(len(np.intersect1d(self.__pruned_C1[c1], self.__pruned_C1[c2])))
-        print('////////////', c1, similarities)
-        print('$$$$$$$$$$$', list(map(lambda v: len(np.setdiff1d(v, self.__pruned_C1[c1])), self.__pruned_C1)))
-        indices_of_sorted_similarities = sorted(range(len(similarities)), key=lambda k: similarities[k])
-        self.__k_most_similar_clusters[c1] = indices_of_sorted_similarities[-self.__k:]
-        similarities.clear()
+            self.__k_most_similar_clusters.get(i).extend(list(np.where(arr == max_intersection)[0]))
+            arr[arr == max_intersection] = -1
+            k = k - number_max_intersection
     else:
       raise ValueError("k should not be greater than the number of base clusters('%d')"% len(self.__pruned_C1))
 
