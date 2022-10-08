@@ -1,33 +1,58 @@
 import numpy as np
 from itertools import combinations
-from more_itertools import locate
 from sklearn.cluster import DBSCAN
-
+from sklearn.neighbors import NearestNeighbors
 
 class subclu:
+  """
+  Class represents clustering algorithm SUBCLU.
+  For clustering example please check '/examples/subclu_example.py'.
+  """
 
-  def __init__(self, data, eps, m, distance_metric = 'euclidean'):
+  def __init__(self, data, eps, m):
+    """
+    Constructor of clustering algorithm SUBCLU.
+
+    Parameters
+    ----------
+    data (ndarray): Input data.
+
+    eps (float): Connectivity radius between points. For DBSCAN algorithm.
+
+    m (int): Minimum number of samples in a neighborhood for a point to be
+            considered as a core point. This includes the point itself.
+            For DBSCAN algorithm.
+    """
+
     self.__data = data
     self.__eps = eps
     self.__m = m
-    self.__distance_metric = distance_metric
 
-    self.__S1_indices = []  #set of 1-D subspaces containing clusters
-    self.__C1 = {}  # set of all sets of clusters in 1-D subspaces
-    self.__clusters = {}
-    self.__noise = {}
+    self.__S1_indices = []  #list of 1-D subspaces containing clusters
+    self.__C1 = {}  #1-D subspaces to corresponding 1-D clusters
+    self.__clusters = {}  #clustering(subspaces to clusters)
+    self.__noise = {} #subspaces to noise
 
     self.__verify_arguments()
 
 
 
   def __verify_arguments(self):
+    """
+    Verifies input parameters for the algorithm.
+    """
+
+    if self.__data is None or self.__data.size == 0:
+      raise ValueError("Input data is empty.")
+
+    if self.__data.shape[1] < 2:
+      raise ValueError("Please provide multivariate data.")
 
     if self.__m < 1:
       raise ValueError("minpts should be a natural number.")
 
-    if len(self.__data) == 0:
-      raise ValueError("Input data is empty (size: '%d')." % len(self.__data))
+    if self.__eps <= 0:
+      raise ValueError("epsilon should be a greater than 0.")
 
     #if np.min(self.__data) < 0:
       #raise ValueError("All values should be greater or equal to 0.")
@@ -35,30 +60,54 @@ class subclu:
 
 
   def get_clusters(self):
+    """
+    Returns a dictionary whereby keys are subspaces and values are detected
+    clusters.
+    Keys are tuples and values are lists.
+    """
+
     return self.__clusters
 
+
   def get_noise(self):
+    """
+    Returns a dictionary whereby keys are subspaces and values are noise.
+    Keys are tuples and values are lists.
+    """
+
     return self.__noise
 
 
 
   def process(self):
+    """
+    Performs cluster analysis in line with rules of SUBCLU algorithm and
+    returns a SUBCLU instance(itself).
+    """
+
     self.generate_all_1_D_clusters()
     self.generate_kplus1_D_clusters_from_k_D_clusters()
     return self
 
 
+
   def generate_all_1_D_clusters(self):
-    for dimension in range(len(self.__data[0,:])):
+    """
+    Generates 1-dimensional subspace clusters by applying DBSCAN to each
+    1-dimensional subspace and computes the list of all 1-dimensional subspaces
+    containing clusters.
+    """
+
+    for dimension in range(self.__data.shape[1]):
       vector = self.__data[:,dimension].reshape(-1, 1)
       dbscan_instance = DBSCAN(eps = self.__eps, min_samples = self.__m,
-                               metric=self.__distance_metric, algorithm='auto',
+                               metric='euclidean', algorithm='auto',
                                n_jobs=-1).fit(vector)
       labels = dbscan_instance.labels_
       if 0 in labels:   # at least one cluster was found
         self.__S1_indices.append(dimension)
         self.__C1[dimension] = []
-        for label in range(len(set(labels)) - (1 if -1 in labels else 0)):
+        for label in np.setdiff1d(labels, -1):
            self.__C1.get(dimension).append(np.where(labels == label)[0])
         self.__noise[dimension] = np.where(labels == -1)[0]
     self.__clusters = self.__C1
@@ -66,64 +115,111 @@ class subclu:
 
 
   def generate_kplus1_D_clusters_from_k_D_clusters(self):
+    """
+    Generates the (k+1)-dimensional clusters and the corresponding
+    (k+1)-dimensional subspaces containing these clusters using the
+    k-dimensional subclusters and the list of (k+1)-dimensional candidate
+    subspaces.
+    """
+
+    Sk = None
     k = 1
-    Ck = self.__C1.copy()
-    Sk = self.__S1_indices.copy()
-    while Ck:
-      cand_S_k_plus_1 = subclu.generate_candidate_subspaces(Sk, k)
-      Sk.clear()
-      Ck.clear()
+    cand_S_k_plus_1 = subclu.generate_candidate_subspaces(self.__S1_indices, k)
+    while Sk != []:
+      Sk = []
       for cand in cand_S_k_plus_1:
-        bestSubspaces = self.find_min_cluster(cand, k)
+        bestSubspace = self.find_bestsubspace(cand, k)
         c_cand = []
-        for bestSubspace in bestSubspaces:
-          self.__noise[tuple(cand)] = []
-          for cluster in self.__clusters.get(bestSubspace, []):
-            points = self.get_points_values_in_subspace(cluster, cand)
-            dbscan_instance = DBSCAN(eps = self.__eps, min_samples = self.__m,
-                                     metric=self.__distance_metric, algorithm='auto',
-                                     n_jobs=-1).fit(points)
-            labels = dbscan_instance.labels_
-            for label in range(len(set(labels)) - (1 if -1 in labels else 0)):
-              c_cand.append(cluster[list(np.where(labels == label)[0])])
-            self.__noise.get(tuple(cand)).append(cluster[list(np.where(labels == -1)[0])])
+        self.__noise[cand] = []
+        for cluster in self.__clusters.get(bestSubspace, []):
+          points = self.get_points_values_in_subspace(cluster, cand)
+
+          neigh = NearestNeighbors(n_neighbors=1, radius=self.__eps, metric='euclidean', n_jobs=-1)
+          neigh.fit(points)
+          distances = neigh.radius_neighbors_graph(points, mode='distance', sort_results=True)
+
+          dbscan_instance = DBSCAN(eps = self.__eps, min_samples = self.__m,
+                                   metric='precomputed', algorithm='auto',
+                                   n_jobs=-1).fit(distances)
+
+          labels = dbscan_instance.labels_
+          for label in np.setdiff1d(labels, -1):
+            c_cand.append(cluster[list(np.where(labels == label)[0])])
+          self.__noise.get(cand).append(cluster[list(np.where(labels == -1)[0])])
+
         if c_cand:
-          Sk.append(cand.copy())
-          Ck[tuple(cand)] = c_cand.copy()
-
-      self.__clusters = self.__clusters | Ck.copy() #change this
+          Sk.append(cand)
+          self.__clusters[cand] = c_cand
       k = k + 1
-
+      cand_S_k_plus_1 = subclu.generate_candidate_subspaces(Sk, k)
 
 
   @staticmethod
   def generate_candidate_subspaces(Sk, k):
-    candSkplus1 = []
+    """
+    Generates (k+1)-dimensional candidate subspaces by joining k-dimensional
+    subspaces having (k-1) features in common.
+
+    Parameters
+    ----------
+    Sk (list): k-dimensional subspaces containing clusters.
+
+    k (int): Dimensionality of subspaces within Sk.
+    """
+
+    cand_S_kplus1 = []
     if k == 1:
-      sorted_combinations = list(combinations(Sk, r=2))
-      candSkplus1 = [list(c) for c in sorted_combinations]
+      cand_S_kplus1 = list(combinations(Sk, r=2))
     elif k > 1:
-      for s1 in Sk:
-        for s2 in Sk:
-          if (s1[:-1] == s2[:-1] and s1[-1] < s2[-1]):
-            candSkplus1.append(s1.copy() + [s2[-1]])
-      subclu.prune_irrelevant_candidates_subspaces(candSkplus1, Sk, k)
-    return candSkplus1
+      for i, s1 in enumerate(Sk):
+        for s2 in Sk[i+1:]:
+          if (s1[:-1] != s2[:-1]):
+            break
+          else:
+            cand_S_kplus1.append(s1 + (s2[-1],))
+      subclu.prune_irrelevant_candidates_subspaces(cand_S_kplus1, Sk, k)
+    return cand_S_kplus1
+
 
 
   @staticmethod
-  def prune_irrelevant_candidates_subspaces(candSkplus1, Sk, k):
-    for cand in candSkplus1:
-      sorted_combinations = list(combinations(cand, r=k))
-      list_combinations = [list(c) for c in sorted_combinations]
-      for subspace in list_combinations:
-        if subspace not in Sk and cand in candSkplus1:
-          candSkplus1.remove(cand)
+  def prune_irrelevant_candidates_subspaces(cand_S_kplus1, Sk, k):
+    """
+    Removes irrelevant (k+1)-dimensional subspaces from cand_S_kplus1 in place
+    if any k-dimensional subspace ⊂ (k+1)-dimensional subspaces contains no
+    clusters.
+
+    Parameters
+    ----------
+    cand_S_kplus1 (list): (k+1)-dimensional candidate subspaces.
+
+    Sk (list): k-dimensional subspaces containing clusters.
+
+    k (int): Dimensionality of subspaces within Sk.
+    """
+
+    i = 0
+    while i < len(cand_S_kplus1):
+      if any(x not in Sk for x in list(combinations(cand_S_kplus1[i], r=k))):
+        del cand_S_kplus1[i]
+        i = i - 1
+      i = i + 1
 
 
 
-  def find_min_cluster(self, cand, k, consider_all_bestsubspaces = False):
-    cand_combinations = cand.copy()
+  def find_bestsubspace(self, cand, k):
+    """
+    Searches k-dimensional subspace of cand with minimal number of objects in
+    the clusters.
+
+    Parameters
+    ----------
+    cand (tuple): (k+1)-dimensional candidate subspace.
+
+    k (int): Dimensionality of the searched subspace.
+    """
+
+    cand_combinations = cand
     if k > 1:
       cand_combinations = list(combinations(cand, r=k))
     size = []
@@ -131,19 +227,23 @@ class subclu:
     for key in cand_combinations:
       clusters = self.__clusters.get(key, [])
       size.append(sum(map(len, clusters)))
-
-    if consider_all_bestsubspaces == False:
-      min_cluster_index = size.index(np.min(size))
-      bestsubspace = [cand_combinations[min_cluster_index]]
-    else:
-      min_clusters_indcies = list(locate(size, lambda a: a == np.min(size)))
-      bestsubspace = [cand_combinations[i] for i in min_clusters_indcies]
-
+    min_cluster_index = np.argmin(size)
+    bestsubspace = cand_combinations[min_cluster_index]
     return bestsubspace
 
 
 
   def get_points_values_in_subspace(self, points, features):
+    """
+    Extracts the projection of objects into a specific subspace.
+
+    Parameters
+    ----------
+    points (array): Indices of the objects.
+
+    features (tuple): Indices of the dimensions forming the subspace.
+    """
+
     return self.__data[np.ix_(points,features)]
 
 
