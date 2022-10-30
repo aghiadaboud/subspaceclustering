@@ -159,6 +159,7 @@ class fires:
     self.__best_merge_candidates = {}
     self.__best_merge_clusters = []
     self.__subspace_cluster_approximations = []
+    self.__noise = {} #subspaces to noise
     self.__verify_arguments()
 
 
@@ -170,11 +171,13 @@ class fires:
     if self.__data is None or self.__data.size == 0:
       raise ValueError("Input data is empty.")
     if self.__minClu < 1:
-      raise ValueError("minClu should be a natural number.")
+      raise ValueError("minClu should be greater than zero.")
     if self.__mu < 1:
-      raise ValueError("mu should be a natural number.")
+      raise ValueError("mu should be greater than zero.")
+    if self.__mu > self.__k:
+      raise ValueError("mu should be less or equal k.")
     if self.__k < 1:
-      raise ValueError("k should be a natural number.")
+      raise ValueError("k should be greater than zero.")
     if not isinstance(self.__clustering_method, (Clustering_By_dbscan, Clustering_By_kmeans, Clustering_By_clique)):
       raise ValueError("clustering_method should be instance of Clustering_By_dbscan or Clustering_By_kmeans or Clustering_By_clique.")
 
@@ -222,6 +225,13 @@ class fires:
   def get_subspace_cluster_approximations(self):
     return self.__subspace_cluster_approximations
 
+  def get_noise(self):
+    """
+    Returns a dictionary whereby keys are subspaces and values are noise.
+    Keys are tuples and values are lists.
+    """
+
+    return self.__noise
 
 
   def process(self):
@@ -237,7 +247,6 @@ class fires:
     self.compute_best_merge_candidates()
     self.compute_best_merge_clusters()
     self.generate_subspace_cluster_approximations()
-    #self.clean_subspace_cluster_approximations()
     self.prune_irrelevant_merge_candidate_of_subspace_cluster_approximations()
     self.refine_cluster_approximations()
     return self
@@ -258,6 +267,7 @@ class fires:
       for label in np.setdiff1d(labels, -1):
         self.__unpruned_C1.append(np.where(labels == label)[0])
         self.__baseCluster_to_dimension[len(self.__unpruned_C1) -1] = dimension
+      self.__noise[dimension] = np.where(labels == -1)[0]
 
 
 
@@ -301,7 +311,8 @@ class fires:
     of both clusters resulting from the split is at least two-thirds the
     average size of base-clusters. The two clusters resulting from the split
     are the intersection with the most_similar_cluster and the remaining points
-    in the base-cluster(split candidate).
+    in the base-cluster(split candidate). Subsequently it saves the definitive
+    base-clusters in the 'self.__clusters' to return later.
     """
 
     two_thirds_of_s_avg = 2 * fires.compute_s_avg(self.__pruned_C1) / 3
@@ -322,14 +333,17 @@ class fires:
         self.__baseCluster_to_dimension[len(self.__pruned_C1) -1] = self.__baseCluster_to_dimension.get(j)
         self.__pruned_C1[j] = new_clusters[0]
 
-
+    for cluster_index, dimension in self.__baseCluster_to_dimension.items():
+      self.__clusters[dimension] = self.__clusters.get(dimension, [])
+      self.__clusters[dimension].append(self.__pruned_C1[cluster_index])
 
 
   def compute_most_similar_cluster(self, cluster_index, cluster):
     """
     Searches the most_similar_cluster of a base-cluster. That means the cluster
     with the largest intersection. If there are more than one
-    most_similar_cluster, the one with the least difference is chosen.
+    most_similar_cluster, we simply choose the first one, since they all have
+    the same amount of intersection with the cluster.
 
     Parameters
     ----------
@@ -342,14 +356,11 @@ class fires:
 
     intersections = list(map(lambda x: len(np.intersect1d(x, cluster)), self.__pruned_C1))
     intersections[cluster_index] = -1
-    arr = np.array(intersections)
-    mscs = np.where(arr == np.amax(arr))[0]
-    unique_of_mscs = list(map(lambda v: len(np.setdiff1d(self.__pruned_C1[v], cluster)), mscs))
-    return mscs[np.argmin(unique_of_mscs)]
+    return np.argmax(intersections)
 
 
 
-  def compute_k_most_similar_clusters(self):
+  #def compute_k_most_similar_clusters(self):
     """
     Searches the k most_similar_clusters for each base-cluster. If there are
     more than k most_similar_clusters, the ones with the least difference
@@ -359,7 +370,7 @@ class fires:
     lists containing indicies of the k most_similar_clusters.
     """
 
-    if self.__k < len(self.__pruned_C1):
+    """if self.__k < len(self.__pruned_C1):
       for i, cluster in enumerate(self.__pruned_C1):
         self.__k_most_similar_clusters[i] = []
         intersections = list(map(lambda x: len(np.intersect1d(x, cluster)), self.__pruned_C1))
@@ -384,8 +395,26 @@ class fires:
             arr[arr == maxnew_clusters] = -1
             k = k - number_maxnew_clusters
     else:
-      raise ValueError("k should not be equal or greater than the number of base clusters('%d')"% len(self.__pruned_C1))
+      raise ValueError("k should not be equal or greater than the number of base clusters('%d')"% len(self.__pruned_C1))"""
 
+
+  def compute_k_most_similar_clusters(self):
+    """
+    Searches the k most_similar_clusters for each base-cluster. If there are
+    more than k most_similar_clusters, the last k ones are chosen. The results
+    are stored in the dictionary 'self.__k_most_similar_clusters' whereby the
+    keys are indicies of base-clusters in the list of all pruned base-cltsers
+    and the values are lists containing indicies of the k most_similar_clusters
+    """
+
+    if self.__k < len(self.__pruned_C1):
+      for i, cluster in enumerate(self.__pruned_C1):
+        self.__k_most_similar_clusters[i] = []
+        intersections = list(map(lambda x: len(np.intersect1d(x, cluster)), self.__pruned_C1))
+        intersections[i] = -1
+        self.__k_most_similar_clusters[i] = np.argpartition(intersections, -self.__k)[-self.__k:]
+    else:
+      raise ValueError("k should not be equal or greater than the number of base clusters('%d')"% len(self.__pruned_C1))
 
 
   def compute_best_merge_candidates(self):
@@ -399,7 +428,7 @@ class fires:
     number_base_clusters = len(self.__pruned_C1)
     sorted_combinations = list(combinations(range(number_base_clusters), r=2))
     for combination in sorted_combinations:
-      if (len(set(self.__k_most_similar_clusters.get(combination[0])) & set(self.__k_most_similar_clusters.get(combination[1]))) >= self.__mu):
+      if (len(np.intersect1d(self.__k_most_similar_clusters.get(combination[0]), self.__k_most_similar_clusters.get(combination[1]))) >= self.__mu):
         self.__best_merge_candidates[combination[0]] = self.__best_merge_candidates.get(combination[0], [])
         self.__best_merge_candidates.get(combination[0]).append(combination[1])
         self.__best_merge_candidates[combination[1]] = self.__best_merge_candidates.get(combination[1], [])
@@ -439,23 +468,6 @@ class fires:
 
 
 
-  def clean_subspace_cluster_approximations(self):
-    for approximation in self.__subspace_cluster_approximations:
-      scores = self.compute_quality_of_approximation_ignoring_one_cluster_eachTime(approximation)
-      while (sum(scores) == 0):
-        dimensions = list(map(self.__baseCluster_to_dimension.get, approximation))
-        counter = Counter(dimensions)
-        most_repeated_dimension = counter.most_common()[0][0]
-        relevant_clusters = np.where(np.array(dimensions) == most_repeated_dimension)[0]
-        clusters_of_mrd = []
-        for i in relevant_clusters:
-          clusters_of_mrd.append(self.__pruned_C1[approximation[i]])
-        sizes = list(map(len, clusters_of_mrd))
-        del approximation[relevant_clusters[np.argmin(sizes)]]
-        scores = self.compute_quality_of_approximation_ignoring_one_cluster_eachTime(approximation)
-
-
-
   def prune_irrelevant_merge_candidate_of_subspace_cluster_approximations(self):
     """
     Removes repeatedly irrelevant merge_candidates from a
@@ -484,33 +496,21 @@ class fires:
             i = 0
           else:
             i = i + 1
-    #check if any approximation appears twice after pruning?
+    #check if any approximation is a strict subset or duplicate of any other one and delete it
     amount_approximations = len(self.__subspace_cluster_approximations)
-    counters_of_approximations = list(map(Counter, self.__subspace_cluster_approximations))
-    sorted_combinations = list(combinations(range(amount_approximations), r=2))
-    must_deleted = []
-    for j in range(amount_approximations-1):
-      for combi in [w for w in sorted_combinations if w[0] == j]:
-        if (counters_of_approximations[combi[0]] == counters_of_approximations[combi[1]]):
-          must_deleted.append(combi[0])
-          break
-    for h in reversed(must_deleted):
-      del self.__subspace_cluster_approximations[h]
-    #check if any approximation is a strict subset of any other one?and delete it?
-    """amount_approximations = len(self.__subspace_cluster_approximations)
     sorted_combinations = list(combinations(range(amount_approximations), r=2))
     must_deleted = set()
     for j in range(amount_approximations-1):
       if j not in must_deleted:
-        first_approximation = self.__subspace_cluster_approximations[j]
+        jth_approximation = self.__subspace_cluster_approximations[j]
         for combi in [w for w in sorted_combinations if w[0] == j]:
-          if (set(first_approximation).issubset(self.__subspace_cluster_approximations[combi[1]])):
+          if (set(jth_approximation).issubset(self.__subspace_cluster_approximations[combi[1]])):
             must_deleted.add(combi[0])
             break
-          elif (set(self.__subspace_cluster_approximations[combi[1]]).issubset(first_approximation)):
+          elif (set(self.__subspace_cluster_approximations[combi[1]]).issubset(jth_approximation)):
             must_deleted.add(combi[1])
     for h in sorted(must_deleted, reverse=True):
-      del self.__subspace_cluster_approximations[h]"""
+      del self.__subspace_cluster_approximations[h]
 
 
 
@@ -558,21 +558,22 @@ class fires:
     """
 
     for approximation in self.__subspace_cluster_approximations:
-      features = tuple(set(self.__baseCluster_to_dimension.get(k) for k in approximation))
+      subspace = tuple(set(self.__baseCluster_to_dimension.get(k) for k in approximation))
       base_clusters = [self.__pruned_C1[i] for i in approximation]
       base_clusters_union = reduce(np.union1d, base_clusters)
-      projections_into_subspace = self.get_points_values_in_subspace(base_clusters_union, features)
-      #print('////', approximation, features, base_clusters_union)
+      projections_into_subspace = self.get_points_values_in_subspace(base_clusters_union, subspace)
+      #print('////', approximation, subspace, base_clusters_union)
       if isinstance(self.__clustering_method, Clustering_By_dbscan):
-        new_eps = self.adjust_density_threshold(self.__clustering_method.get_eps(), len(features))
+        new_eps = self.adjust_density_threshold(self.__clustering_method.get_eps(), len(subspace))
         clustering = self.__clustering_method.process(projections_into_subspace, new_eps)
       else:
         clustering = self.__clustering_method.process(projections_into_subspace)
       labels = clustering.labels_
       if 0 in labels:
-        self.__clusters[features] = self.__clusters.get(features, [])
+        self.__clusters[subspace] = self.__clusters.get(subspace, [])
         for label in np.setdiff1d(labels, -1):
-          self.__clusters[features].append(base_clusters_union[list(np.where(labels == label)[0])])
+          self.__clusters[subspace].append(base_clusters_union[list(np.where(labels == label)[0])])
+      self.__noise[subspace] = np.where(labels == -1)[0]
 
 
 
@@ -602,7 +603,7 @@ class fires:
 
     d (int): Dimensionality of the subspace.
     """
-
+    #return 0.2
     return (eps * self.__data.shape[0]) / (pow(self.__data.shape[0], (1/d)))
 
 

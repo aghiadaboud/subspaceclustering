@@ -1,13 +1,15 @@
 import numpy as np
+import math
 from itertools import chain
 from scipy.optimize import linear_sum_assignment
+import warnings
 
 
 def overall_f1_recall(true_clusters, found_clusters):
   """
   Computes the overall F1-Recall evaluation measure for two clusterings. For
   more information please check
-  https://www.ipd.kit.edu/~muellere/publications/CIKM2011B.pdf
+  https://dl.acm.org/doi/10.1145/2063576.2063774
 
   Parameters
   ----------
@@ -36,11 +38,44 @@ def overall_f1_recall(true_clusters, found_clusters):
 
 
 
+def overall_f1_precision(true_clusters, found_clusters):
+  """
+  Computes the overall F1-Precision evaluation measure for two clusterings. For
+  more information please check
+  https://dl.acm.org/doi/10.1145/2063576.2063774
+
+  Parameters
+  ----------
+  true_clusters (dictionary): The ground truth. The keys are subspaces and the
+                              values are lists of hidden clusters in these
+                              subspaces.
+
+  found_clusters (dictionary): Clustering result. The keys are subspaces that
+                              contain clusters and the values are lists of
+                              found clusters in these subspaces.
+  """
+
+  verify_arguments(true_clusters, found_clusters)
+  f1_p = 0
+  all_true_clusters = list(chain.from_iterable(true_clusters.values()))
+  for subspace in found_clusters.keys():
+    for cluster in found_clusters.get(subspace):
+      intersections = np.array(list(map(lambda x: len(np.intersect1d(x, cluster)), all_true_clusters)))
+      recalls = intersections / len(cluster)
+      precisions =  intersections / list(map(len, all_true_clusters))
+      with np.errstate(divide='ignore',invalid='ignore'):
+        f1s = (2 * recalls * precisions) / (recalls + precisions)
+        f1s[np.isnan(f1s)] = 0
+      f1_p = f1_p + max(f1s, default=0)
+  return f1_p / sum(map(len,found_clusters.values()))
+
+
+
 def overall_f1_merge(true_clusters, found_clusters):
   """
   Computes the overall F1-Merge evaluation measure for two clusterings. For
   more information please check
-  https://www.ipd.kit.edu/~muellere/publications/CIKM2011B.pdf
+  https://dl.acm.org/doi/10.1145/2063576.2063774
 
   Parameters
   ----------
@@ -85,8 +120,8 @@ def overall_rnia(db_n, db_d, true_clusters, found_clusters):
   """
   Computes the overall RNIA evaluation measure for two clusterings. For
   more information please check
-  https://www.ipd.kit.edu/~muellere/publications/CIKM2011B.pdf and
-  citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.128.9544&rep=rep1&type=pdf
+  https://dl.acm.org/doi/10.1145/2063576.2063774 and
+  https://dl.acm.org/doi/10.1109/TKDE.2006.106
 
   Parameters
   ----------
@@ -116,8 +151,8 @@ def overall_ce(db_n, db_d, true_clusters, found_clusters):
   """
   Computes the overall CE evaluation measure for two clusterings. For
   more information please check
-  https://www.ipd.kit.edu/~muellere/publications/CIKM2011B.pdf and
-  citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.128.9544&rep=rep1&type=pdf
+  https://dl.acm.org/doi/10.1145/2063576.2063774 and
+  https://dl.acm.org/doi/10.1109/TKDE.2006.106
 
   Parameters
   ----------
@@ -193,7 +228,7 @@ def e4sc(true_clusters, found_clusters):
   """
   Computes the E4SC evaluation measure for two clusterings. For
   more information please check
-  https://www.ipd.kit.edu/~muellere/publications/CIKM2011B.pdf
+  https://dl.acm.org/doi/10.1145/2063576.2063774
 
   Parameters
   ----------
@@ -209,9 +244,12 @@ def e4sc(true_clusters, found_clusters):
   verify_arguments(true_clusters, found_clusters)
   f1_ground_res = compute_f1_sc_clus(true_clusters, found_clusters)
   f1_res_ground = compute_f1_sc_clus(found_clusters, true_clusters)
+  warnings.filterwarnings('ignore')
   try:
     e4sc = (2 * f1_ground_res * f1_res_ground) /(f1_ground_res + f1_res_ground)
   except ZeroDivisionError:
+    e4sc = 0
+  if math.isnan(e4sc):
     e4sc = 0
   return e4sc
 

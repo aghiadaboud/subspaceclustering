@@ -14,6 +14,9 @@ from sklearn.cluster import DBSCAN
 import time
 import timeit
 from scipy.optimize import linear_sum_assignment
+import csv
+from sklearn.decomposition import PCA
+import json
 
 
 
@@ -22,36 +25,24 @@ class temp:
     def __init__(self):
       self.x = 1
 
-    def test47(self):
-      s = [5,77,9,10, 444]
-      t = sorted(range(len(s)), key=lambda k: s[k])
-      print(t)
-      print([s[i] for i in t[-3:]])
+    def visualize_samples(samples):
+      """mapper = umap.UMAP().fit(samples.data)
+      umap.plot.points(mapper)
+      plt.show()"""
 
-    def test48(self):
-      s = [5,77,9,10, 444, 5, 77]
-      print(list(more_itertools.locate(s, lambda a: a == np.min(s))))
-
-
-    def test50(self):
-      points = np.array([[0], [3.1], [1], [0.4], [1.5], [0.7], [0.9], [0.5], [30], [31], [30.5]])
-      neigh = NearestNeighbors(n_neighbors= 3, radius=1.5, metric='euclidean', n_jobs=-1)
-      neigh.fit(points)
-      print(neigh.kneighbors(points))
-      A = neigh.radius_neighbors_graph(points, mode='distance',sort_results=True)
-      print(A.toarray())
-      dbscan_instance = DBSCAN(eps=0.4,min_samples = 2,
-                               metric='precomputed', algorithm='auto',
-                               n_jobs=-1).fit(A)
-      print(dbscan_instance.labels_)
-
-
-    def test(self):
+      """pca = PCA(n_components=3)
+      samples = pca.fit_transform(samples)
+      fig = plt.figure()
+      ax = fig.add_subplot(projection='3d')
+      colours = ['green', 'b', 'r', 'c', 'm', 'y', 'k', 'w', 'orange', 'tomato']
+      for indicies in true_clusters.values():
+        for cluster in indicies:
+          ax.scatter(samples[cluster,0], samples[cluster,1], samples[cluster,2], c = colours.pop())
+      plt.show()"""
       pass
 
-
 c = temp()
-c.test()
+c.visualize_samples()
 
 
 

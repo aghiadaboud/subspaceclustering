@@ -2,6 +2,14 @@ import numpy as np
 
 
 def generate_samples(n, d, samples_std, seed, subspace_clusters = None):
+  """
+  This implementation is not based on any scientific research/paper and may not
+  perform well on high dimensionalities(>10). The idea is to sample the
+  points of a cluster from the normal distribution and to place them in a
+  low-density region. This region is determined by the mean of the normal
+  distribution which is composed of coordinates of low-density regions in each
+  dimensione of the relevant subspace.
+  """
 
   np.random.seed(seed)
   samples = np.random.normal(loc=(np.random.uniform(0,0)), scale=samples_std, size=(n, d))
