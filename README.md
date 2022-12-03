@@ -1,4 +1,4 @@
-This repository includes an implementation of SUBCLU and FIRES and an evaluation of their performances in Python. To reproduce the figures and tables in `'ba.pdf'`, please run the following command in the ba_aghied_aboud directory:
+This repository includes an implementation of SUBCLU and FIRES and an evaluation of their performances in Python. To reproduce the figures and tables in `'thesis/ba.pdf'`, please run the following command:
 ```
 bash run.sh
 ```
