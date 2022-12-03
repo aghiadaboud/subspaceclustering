@@ -52,7 +52,7 @@ def cluster_glass():
     evaluate_clustering(214, 9, true_clusters, found_clusters)
 
 
-def cluster_D05():
+def cluster_D05(print_clusters = False, print_evaluation = True):
     """Reproduces Subclu-related values in table 1 in the thesis."""
     true_clusters = {
         (0, 1, 4): [range(0, 302)],
@@ -71,13 +71,14 @@ def cluster_D05():
     found_clusters = subclu_instance.get_clusters()
     # uncomment the below line to print all found clusters
     # print_clustering(found_clusters, subclu_instance.get_noise())
-    # uncomment the below line to print found clusters in the wanted subspaces
-    # for subspace in list(true_clusters):
-    # print(subspace, found_clusters.get(subspace, []))
-    evaluate_clustering(1595, 5, true_clusters, found_clusters)
+    if print_clusters:
+        for subspace in list(true_clusters):
+          print(subspace, found_clusters.get(subspace, []))
+    if print_evaluation:
+        evaluate_clustering(1595, 5, true_clusters, found_clusters)
 
 
-def cluster_D10():
+def cluster_D10(print_clusters = False, print_evaluation = True):
     """Reproduces Subclu-related values in table 2 in the thesis."""
     true_clusters = {
         (1, 2, 3, 5, 9): [range(0, 300)],
@@ -98,10 +99,11 @@ def cluster_D10():
     found_clusters = subclu_instance.get_clusters()
     # uncomment the below line to print all found clusters
     # print_clustering(found_clusters, subclu_instance.get_noise())
-    # uncomment the below line to print found clusters in the wanted subspaces
-    # for subspace in list(true_clusters):
-    #    print(subspace, found_clusters.get(subspace, []))
-    evaluate_clustering(1595, 10, true_clusters, found_clusters)
+    if print_clusters:
+        for subspace in list(true_clusters):
+          print(subspace, found_clusters.get(subspace, []))
+    if print_evaluation:
+        evaluate_clustering(1595, 10, true_clusters, found_clusters)
 
 
 def cluster_S1500():
@@ -381,6 +383,15 @@ def print_clustering(clusters, noise):
         print(subspace, list(map(sorted, list_of_clusters)), "\n")
 
 
+def create_3D_plot(samples):
+    pca = PCA(n_components=3)
+    samples = pca.fit_transform(samples[:, :-1])
+    fig = plt.figure(figsize=(8, 4))
+    ax = plt.axes(projection='3d')
+    ax.scatter(samples[:,0], samples[:,1], samples[:,2])
+    plt.show()
+
+
 def evaluate_clustering(db_size, db_dimensionality, true_clusters, found_clusters):
     print(
         "F1 Recall %.2f"
@@ -423,7 +434,7 @@ def plot_D05():
     samples = read_csv("db_dimensionality_scale/D05")
     pca = PCA(n_components=3)
     samples = pca.fit_transform(samples[:, :-1])
-    fig = plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(8, 4))
     ax = fig.add_subplot(projection="3d")
     colours = [
         "yellow",
@@ -445,13 +456,14 @@ def plot_D05():
                 samples[cluster, 2],
                 c=colours.pop(),
             )
-    plt.show()
+    plt.savefig('subspaceclustering/images/D05.pdf')
+    #plt.show()
 
 
 # cluster_vowel()
 # cluster_diabetes()
 # cluster_glass()
-# cluster_D05()
+# cluster_D05(print_clusters = True)
 # cluster_D10()
 # plot_D05()
 # cluster_2d_100n_2sc()

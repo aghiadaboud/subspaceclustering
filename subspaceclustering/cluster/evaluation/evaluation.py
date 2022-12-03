@@ -63,14 +63,14 @@ def cluster_10d_xn_2sc():
         fires_runtime.append(stop_fires - start_fires)
         print("Clustering 10d, " + str(n) + " n, 2 sc by FIRES: done")
     plt.figure(figsize=(8, 4))
-    plt.rcParams.update({"font.size": 26})
+    #plt.rcParams.update({"font.size": 26})
     plt.plot(size, subclu_runtime, label="SUBCLU")
     plt.plot(size, fires_runtime, label="FIRES")
     plt.xlabel("Number of points")
     plt.ylabel("Runtime in seconds")
     plt.legend(loc="center right")
-    plt.savefig("cluster_10d_xn_2sc.pdf")
-    plt.show()
+    plt.savefig("subspaceclustering/images/cluster_10d_xn_2sc.pdf")
+    #plt.show()
 
 
 def cluster_10d_xn_10sc():
@@ -100,14 +100,14 @@ def cluster_10d_xn_10sc():
     fires_runtime.append(fires_example.cluster_S5500())
     print("Clustering S5500 by FIRES: done")
     plt.figure(figsize=(8, 4))
-    plt.rcParams.update({"font.size": 26})
+    #plt.rcParams.update({"font.size": 26})
     plt.plot(datasets, subclu_runtime, label="SUBCLU")
     plt.plot(datasets, fires_runtime, label="FIRES")
     plt.xlabel("Number of points")
     plt.ylabel("Runtime in seconds")
     plt.legend(loc="upper left")
-    plt.savefig("cluster_10d_xn_10sc.pdf")
-    plt.show()
+    plt.savefig("subspaceclustering/images/cluster_10d_xn_10sc.pdf")
+    #plt.show()
 
 
 def cluster_xd_1000n_1sc():
@@ -137,14 +137,14 @@ def cluster_xd_1000n_1sc():
         fires_runtime.append(stop_fires - start_fires)
         print("Clustering " + str(d) + "d, 1000 n, 1 sc by FIRES: done")
     plt.figure(figsize=(8, 4))
-    plt.rcParams.update({"font.size": 26})
+    #plt.rcParams.update({"font.size": 26})
     plt.plot([10, 15, 20, 25], subclu_runtime, label="SUBCLU")
     plt.plot(dimensionalities, fires_runtime, label="FIRES")
     plt.xlabel("Data dimensionality")
     plt.ylabel("Runtime in seconds")
     plt.legend(loc="upper right")
-    plt.savefig("cluster_xd_1000n_1sc.pdf")
-    plt.show()
+    plt.savefig("subspaceclustering/images/cluster_xd_1000n_1sc.pdf")
+    #plt.show()
 
 
 def cluster_xd_xn_10sc():
@@ -176,14 +176,14 @@ def cluster_xd_xn_10sc():
         fires_runtime.append(stop_fires - start_fires)
         print("Clustering D" + dataset + " by FIRES: done")
     plt.figure(figsize=(8, 4))
-    plt.rcParams.update({"font.size": 26})
+    #plt.rcParams.update({"font.size": 26})
     plt.plot([5, 10, 15, 20], subclu_runtime, label="SUBCLU")
     plt.plot([5, 10, 15, 20, 25, 50], fires_runtime, label="FIRES")
     plt.xlabel("Data dimensionality")
     plt.ylabel("Runtime in seconds")
     plt.legend(loc="upper left")
-    plt.savefig("cluster_xd_xn_10sc.pdf")
-    plt.show()
+    plt.savefig("subspaceclustering/images/cluster_xd_xn_10sc.pdf")
+    #plt.show()
 
 
 def read_csv(filename):

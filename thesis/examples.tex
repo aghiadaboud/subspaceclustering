@@ -1,0 +1,105 @@
+\section{Examples}\raggedbottom
+
+In general, when clustering by FIRES we struggled to find the right combination of hyperparameters for each dataset and that applies to the two examples illustrated below. We have also noticed that the more subspace clusters with various dimensionalities there are, the harder it is to tune the parameters in a way that allows all clusters to be detected.
+
+Since DBSCAN was chosen as a clustering method for FIRES in the following examples, we started the process of tuning the hyperparameters by finding proper $\varepsilon$ and $minPts$ values, because they are the key for detecting base-clusters that form the basis for all other steps in the algorithm. After fixing $\varepsilon$ and $minPts$, we tried to find a combination of $k, \mu$ and $minClu$ that leads to good balanced evaluation scores while taking into account the most successful values of these parameters that are mentioned in the paper \citep{fires}.
+
+For SUBCLU, the density threshold is globally defined and therefore $\varepsilon$ should not be chosen too low in order to detect clusters in high-dimensional subspaces, the thing that may keep some low-dimensional subspace clusters undetected.
+
+We applied SUBCLU and FIRES to synthetic datasets\footnote{\href{https://github.com/david-c-hunn/edu.uwb.opensubspace/tree/master/edu.uwb.opensubspace/Databases}{Link to Github.}} with unequal subspace-cluster density and dimensionality. 
+
+The first dataset is D05 with 1595 observations and 5 dimensions. It contains 10 subspace clusters of dimensionalities 3 and 4. It also contains simultaneously overlapped clusters and subspaces. To visualize the multidimensional data and see if we can identify 10 subspace clusters, we applied a dimensionality reduction method, called PCA (principal component analysis) on D05 using three principal components and transformed the feature space to a new reduced coordinate system. Subsequently, we generated a 3D scatter plot that can be seen in Figure~\ref{fig:D05}:
+\begin{figure}[H]
+	\centering
+	\centering
+	\includegraphics[clip, trim=1cm 3.5cm 1cm 4.5cm, width=1.0\textwidth]{bilder/D05}
+	\caption{3D scatter plot of D05.}
+	\label{fig:D05}
+\end{figure}
+As we can see, there are only 8 different colors that represent 8 different subspace clusters. In order to see the remaining 2, we have to slightly move the interactive 3D plot to get another perspective:
+\begin{figure}[H]
+	\centering
+	\includegraphics[clip, trim=1cm 2.7cm 1cm 3cm, width=1.0\textwidth]{bilder/D05AnotherPerspective}
+	\caption{Another perspective of the 3D scatter plot of D05.}
+	\label{fig:D05AnotherPerspective}
+\end{figure}
+Now we can see a red and a gray subspace cluster which overlap with the blue and orange clusters respectively.
+
+After applying SUBCLU and FIRES with DBSCAN as a clustering method, we examined the clustering results of both algorithms on D05 and found the following:
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|c|c|}
+		\hline
+		\small Subspace&\small Cluster&\small SUBCLU&\small FIRES&\small Color\\
+		\hline
+		\hline
+		$\{0,1,4\}$&\small $\{0,\dots,302\}$&\checkmark&\ding{53}&\textcolor{blue}{\ding{108}}\\
+		\hline
+		\hline
+		\multirow{3}{3.8em}{$\{0,1,3,4\}$}&\small $\{0,\dots,156\}$&\checkmark&\ding{53}&\textcolor{red}{\ding{108}}\\
+		&\small $\{1008,\dots,1158\}$&\checkmark&\checkmark&\textcolor{Salmon}{\ding{108}}\\
+		&\small $\{1159,\dots,1309\}$&\checkmark&\checkmark&\textcolor{black}{\ding{108}}\\
+		\hline
+		\hline
+		$\{1,2,3\}$&\small $\{303,\dots,604\}$&\checkmark&\ding{53}&\textcolor{orange}{\ding{108}}\\
+		\hline
+		\hline
+		$\{1,2,3,4\}$&\small $\{303,\dots,459\}$&\checkmark&\checkmark&\textcolor{gray}{\ding{108}}\\
+		\hline
+		\hline
+		\multirow{2}{3.8em}{$\{0,2,3\}$}&\small $\{605,\dots,755\}$&\checkmark&\ding{53}&\textcolor{cyan}{\ding{108}}\\
+		&\small $\{1310,\dots,1460\}$&\checkmark&\checkmark&\textcolor{YellowGreen}{\ding{108}}\\
+		\hline
+		\hline
+		$\{1,2,4\}$&\small $\{605,\dots,655,756,\dots,854\}$&\checkmark&\ding{53}&\textcolor{magenta}{\ding{108}}\\
+		\hline
+		\hline
+		$\{0,2,3,4\}$&\small $\{855,\dots,1007\}$&\checkmark&\checkmark&\textcolor{yellow}{\ding{108}}\\
+		\hline
+	\end{tabular}
+	\caption{Clustering results on dataset D05.}
+	\label{tab:D05Report}
+\end{table}
+
+Another dataset, called D10, consists of 1595 observations and 10 attributes. There are 10 subspace clusters of dimensionalities between 5--8. As for D05, simultaneously overlapped clusters and subspaces do exist. The clustering results are illustrated below: 
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|c|c|c|c|}
+		\hline
+		\small Subspace&\small Cluster&\small SUBCLU&\small FIRES\\
+		\hline
+		\hline
+		$\{1,2,3,5,9\}$&\small $\{0,\dots,300\}$&\checkmark&\ding{53}\\
+		\hline
+		\hline
+		{$\{0,1,2,3,5,6,7,9\}$}&\small $\{0,\dots,150\}$&\checkmark&\ding{53}\\
+		\hline
+		\hline
+		$\{0,2,4,6,9\}$&\small $\{301,\dots,602\}$&\checkmark&\ding{53}\\
+		\hline
+		\hline
+		$\{0,1,2,3,4,5,6,9\}$&\small $\{301,\dots,454\}$&\checkmark&\ding{53}\\
+		\hline
+		\hline
+		{$\{1,2,4,5,7,8\}$}&\small $\{603,\dots,753\}$&\checkmark&\ding{53}\\
+		\hline
+		\hline
+		$\{0,2,3,4,5,9\}$&\small $\{603,\dots,653,754,\dots,853\}$&\checkmark&\ding{53}\\
+		\hline
+		\hline
+		$\{1,2,3,4,5,6,7,9\}$&\small $\{854,\dots,1003\}$&\checkmark&\checkmark\\
+		\hline
+		\hline
+		$\{0,2,3,4,5,6,8,9\}$&\small $\{1004,\dots,1154\}$&\checkmark&\checkmark\\
+		\hline
+		\hline
+		$\{0,1,2,3,6,7,8\}$&\small $\{1155,\dots,1305\}$&\checkmark&\checkmark\\
+		\hline
+		\hline
+		$\{0,3,4,6,7,8\}$&\small $\{1306,\dots,1457\}$&\checkmark&\checkmark\\
+		\hline
+	\end{tabular}
+	\caption{Clustering results on dataset D10.}
+	\label{tab:D10Report}
+\end{table}
+One example of a good performance of FIRES is the one illustrated in the previous section Figure~\ref{fig:bestResult} and Figure~\ref{fig:groundTruth}. By running SUBCLU on the same dataset, all clusters were found in the full relevant subspaces.

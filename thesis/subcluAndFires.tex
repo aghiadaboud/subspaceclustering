@@ -1,0 +1,231 @@
+\section{SUBCLU and FIRES}\raggedbottom
+
+\subsection{SUBCLU}
+SUBCLU \citep{subclu} is the first subspace clustering method for high-dimensional data that has a density-based cluster model of DBSCAN. It searches for clusters only in axis-parallel subspaces and it is capable of detecting both overlapping clusters and overlapping subspaces. It can find subspace clusters of arbitrary size, shape and dimensionality. It is deterministic, robust to noise, generates an arbitrary number of subspace clusters, independent with respect to the order of features and to the order of objects. 
+
+The algorithm can be represented by two repeatedly done major steps, generating candidate subspaces and clustering data objects in these subspaces.
+
+Since SUBCLU uses DBSCAN \citep{10.5555/3001460.3001507} as a clustering method, subspace clusters detected by SUBCLU are maximal sets of density-connected points whereby density connectivity is defined based on core points that have at least \textit{minPts} points in their $\varepsilon$-neighborhood. SUBCLU takes $minPts$ and $\varepsilon$ as parameters and employs them in all clustering calls and therefore some subspace clusters of certain local densities may remain undetected due to the globally used density threshold $\varepsilon$.
+
+Before going ahead and explaining the workflow of SUBCLU, it is important to understand the monotonicity property used to reduce the search space by pruning subspaces that cannot contain any clusters. The monotonicity assumption states that if a cluster $C$ exists in a subspace $S$, then it should also exist in all lower-dimensional subspaces $T \subseteq S$. Therefore, we can remove all subspaces $T$ that contain no clusters since no superspace $T \subset S$ contains a cluster. This monotonicity assumption can be explained by the monotonicity of density-connected sets, which is proven in the publication of SUBCLU \citep{subclu}.
+
+The algorithm has a bottom-up search approach. It starts with identifying all important 1-dimensional subspaces $S_{1}$ by applying DBSCAN to each 1-dimensional subspace individually and then checking whether any 1-dimensional clusters $C_{1}$ (also called base-clusters) were found or not. All 1-dimensional subspaces that contain no clusters are considered not relevant and are not used to build candidate subspaces of higher dimensionalities. 
+
+SUBCLU increases the dimensionality of searched subspaces and subspace clusters by 1 for each iteration. That means after computing $S_{1}$ and $C_{1}$, if any base-clusters were found $C_{1} \neq \emptyset$, then SUBCLU generates all relevant $(k + 1)$-dimensional candidate subspaces $CandS_{k+1}$ and checks whether detected clusters are conserved in these candidates subspaces or not, whereby at the beginning $k = 1$ for $k \in \{1,....,d\}$ and $d$ being the dimensionality of the database.  
+
+Creating the $(k + 1)$-dimensional candidate subspaces is done by joining every two unequal $(k)$-dimensional candidates together if they have $(k - 1)$ attributes in common. This is meant for 3 dimensions and greater ($k > 1$). For building the 2-dimensional candidate subspaces, SUBCLU simply considers all combinations of every two attributes in $S_{1}$ without replacement.
+
+According to the above-mentioned monotonicity assumption, SUBCLU prunes each generated $(k + 1)$-dimensional candidate subspace $cand \in CandS_{k+1}$ if at least one $(k)$-dimensional subspace $T \subseteq cand$ contains no cluster. After pruning the set $CandS_{k+1}$, SUBCLU ends the iteration by applying DBSCAN to each $cand \in CandS_{k+1}$ and computing $S_{k+1}$ and $C_{k+1}$, the set of $(k + 1)$-dimensional subspaces containing clusters and the set of found clusters in these $(k + 1)$-dimensional subspaces respectively.
+
+To minimize the the number of range queries necessary during the runs of DBSCAN in $cand$ and thus the overall cost, DBSCAN is not applied on all found clusters in all subspaces of $cand$ but only on the objects of clusters in a so-called $bestSubspace \subset cand$ which is the subspace with the minimum number of objects in the clusters:
+\begin{equation}
+bestSubspace = \min _{s\in S_{k}\wedge s\subset cand}\sum _{C_{i}\in C^{s}}|C_{i}|.
+\end{equation}
+$C^{s}$ denotes the set of all detected clusters in subspace $s$.
+
+The process of generating and pruning candidate subspaces and clustering data objects is done recursively until no new clusters in higher-subspaces can be found.
+
+After reading the publication SUBCLU \citep{subclu} we would like to highlight some unclarities in the paper:
+
+\begin{itemize}
+	\item It is not clear which clusters are to be returned. Since the authors did not provide any redundancy removal method or suggested one, all found subspaces clusters of dimensionality 1 and up to maximum dimensionality are returned. Therefore, SUBCLU produces a large number of subspace clusters. An example can be seen in the article \citep{10.14778/1687627.1687770} Figure 13, when clustering the Vowel dataset with 990 records, SUBCLU generated 709--10881 clusters.
+	\item SUBCLU is a greedy algorithm, because of the locally cost-optimal choice of $bestSubspace$, but the authors did not clarify how to handle the case of having many $bestSubspace$. Whether we consider them all or whether we choose wisely one of them is not discussed. 
+\end{itemize}
+We also would like to mention some remarks about SUBCLU:
+\begin{itemize}
+	\item The algorithm fails to drop irrelevant dimensions that contain no clusters because DBSCAN assigns almost all objects to one big cluster in these dimensions and therefore, they are considered relevant dimensions as they have at least one cluster and they are used for building $(k + 1)$-dimensional candidate subspaces. As a result, all dimensions of the feature space are involved, thus SUBCLU can not avoid a complete enumeration of all subspaces and it will end up in the worst case algorithm's complexity $O(2^{d})$ since there are $2^{d}-1$ different axis-parallel subspaces for a databse of $d$-dimensional feature space.
+ 	\item The 2-dimensional candidate subspaces in the set $CandS_{2}$ need not be checked for pruning since every 2-dimensional candidate subspace is built by joining two 1-dimensional subspaces from $S_{1}$ each containing at least one cluster. 
+\end{itemize}
+
+
+\subsection{FIRES}
+FIRES (FIlter REfinement Subspace clustering) \citep{fires} is a subspace clustering framework with no restrictions to the underlying clustering method used to cluster data objects in subspaces.
+
+FIRES was classified as a subspace clustering approach by its authors, but to be precise, FIRES, in addition, is a hybrid approach for clustering high-dimensional data, due to its unique way of searching for subspace clusters. Where unlike other subspace clustering approaches that work on detecting all hidden clusters in all subspaces, FIRES computes subspace clusters of maximal-dimensionalities by making use of the monotonicity assumption mentioned above and skipping on all subspace clusters within projections of these maximal-dimensional subspace clusters. This strategy helps FIRES to avoid a complete enumeration of all subspaces, it keeps FIRES efficient and the number of produced cluster low.
+
+In comparison to SUBCLU, applying FIRES on the Vowel dataset \citep{10.14778/1687627.1687770} yielded only 24--32 subspace clusters.
+
+FIRES searches for clusters only in axis-aligned subspaces and it is capable of detecting both overlapping clusters and overlapping subspaces. It can find subspace clusters of arbitrary size, shape and maximal-dimensionality. It is deterministic, robust to noise, generates an arbitrary number of subspace clusters and independent with respect to the order of objects.
+
+The algorithm has three major steps:
+\begin{itemize}
+	\item Preclustering.
+	\item Generation of Subspace Cluster Approximations.
+	\item Postprocessing of Subspace Clusters.
+\end{itemize}
+But unlike SUBCLU, FIRES is not recursive, it goes through the three steps once and returns a resulting clustering.
+
+To get a better overview and better understanding, we wrote pseudocode (Algorithm~\ref{alg:fires}) to describe all steps in the algorithm since the original publication of FIRES does not include one.
+
+\RestyleAlgo{ruled}
+\IncMargin{1em}
+\begin{algorithm}[H]
+	\DontPrintSemicolon
+	FIRES(database $D$, int $ \mu $, int $ k $, int $ minClu $, object clusteringMethod):\;
+	$C^{1} = \emptyset$	// set of all 1-dimensional subspace clusters\;
+	$MSC_{k} = \{\}$ // k-most-similar-clusters\;
+	$BMC = \{\}$ // best-merge-candidates\;
+	$best$-$merge$-$clusters = \{\}$\;
+	$subspace$-$cluster$-$approximations = \{\}$\;
+	$clustering = \{\}$ // end result\;
+	\textcolor{teal}{/* STEP 1 Generate all base-clusters */\;}
+	\ForEach{dimension $a_{i} \in A$}{
+		$C^{a_{i}}$ = clusteringMethod$(D, a_{i})$ // set of all clusters in subspace $a_{i}$\;
+		\If{$C^{a_{i}} \neq \emptyset$}{
+			$C^{1} = C^{1} \cup C^{a_{i}}$\;
+		}
+	}
+	\textcolor{teal}{/* STEP 2 Prune irrelevant base clusters */\;}
+	$s_{avg} = \frac{\sum _{\forall c_{s}\in C^{1}}|c_{s}|}{|C^{1}|}$ //average size of all base-clusters\;
+	\ForEach{base-cluster $c_{s} \in C^{1}$}{
+		\If{$|c_{s}| < \frac{s_{avg}}{4}$}{
+			$C^{1} = C^{1} \setminus c_{s}$\;
+		}
+	}
+	\textcolor{teal}{/* STEP 3 Check base clusters for splits */\;}
+	$s_{avg} = \frac{\sum _{\forall c_{s}\in C^{1}}|c_{s}|}{|C^{1}|}$\;
+	repeat {\;  
+		\ForEach{base-cluster $c_{s} \in C^{1}$}{
+			$MSC(c_{s}) = c_{t}$ for $c_{t} \in C^{1} \wedge c_{t} \neq c_{s} \wedge (|c_{t} \cap c_{s}|) \geq (|c_{p} \cap c_{s}|) \forall c_{p} \in C^{1}$ // most similar cluster\;
+			\If{$|c_{s} \cap c_{t}| \geq \frac{2s_{avg}}{3} \wedge |c_{s} \setminus c_{t}| \geq \frac{2s_{avg}}{3}$}{
+				$C^{1} = C^{1} \setminus c_{s}$\;
+				$C^{1} = C^{1} \cup (c_{s} \cap c_{t}) \cup (c_{s} \setminus c_{t})$\;
+			}
+		} until {\;
+			$\forall c_{s} \in C^{1}, |c_{s} \cap MSC(c_{s})| < \frac{2s_{avg}}{3} \lor |c_{s} \setminus MSC(c_{s})| < \frac{2s_{avg}}{3}$\;
+		}
+	}
+	\textcolor{teal}{/* STEP 4 Compute k-most-similar-clusters */\;}
+	\ForEach{base-cluster $c \in C^{1}$}{
+		$MSC_{k}[c] = \{c_{1},\ldots,c_{k} | c_{1},\ldots,c_{k} \neq c \wedge c_{1},\ldots,c_{k} \subset C^{1} \wedge \forall c_{i} \in \{c_{1},\ldots,c_{k}\}, \forall c_{q} \in C^{1} \setminus (c_{1},\ldots,c_{k}): |c_{i} \cap c| > |c_{q} \cap c|$\}\;
+	}
+	\caption{The FIRES Algorithm}\label{alg:fires}
+\end{algorithm}
+\IncMargin{1em}
+\begin{algorithm}
+	\DontPrintSemicolon
+	\textcolor{teal}{/* STEP 5 Compute best merge candidates */\;}
+	\ForEach{base-cluster $c \in C^{1}$}{
+		\ForEach{base-cluster $x \in C^{1} \setminus c$}{
+			\If{$|MSC_{k}[c] \cap MSC_{k}[x]| \geq \mu$}{
+				$BMC[c] = BMC[c] \cup x$\;
+			}
+			
+		}
+	}
+	\textcolor{teal}{/* STEP 6 Compute best merge clusters */\;}
+	\ForEach{base-cluster $c \in C^{1}$}{
+		\If{$|BMC[c]| \geq minClu$}{
+			$best$-$merge$-$clusters = best$-$merge$-$clusters \cup c$\;
+		}
+		
+	}
+	\textcolor{teal}{/* STEP 7 Generate subspace cluster approximations */\;}
+	\ForEach {base-clusters $c_{A}, c_{B} \in best$-$merge$-$clusters,c_{A} \neq c_{B}$}{
+		\If{$c_{A} \in BMC[c_{B}] \wedge c_{B} \in BMC[c_{A}]$}{
+			$subspace$-$cluster$-$approximations =$ $subspace$-$cluster$-$approximations \cup (BMC[c_{A}] \cup BMC[c_{B}])$\;
+		}
+		
+	}
+	\textcolor{teal}{/* STEP 8 Prune subspace cluster approximations */\;}
+	\ForEach {approximation $C \in subspace$-$cluster$-$approximations$}{
+		$clean =$ false\;
+		\While{$\neg clean$ }{
+			$clean =$ true\;
+			$score(C) =|\bigcap c_{i} \in C|$ dim($C$)//dim is the dimensionality of a cluster\;
+			\ForEach{$c \in C$}{
+				\If{$score(C\setminus c) > score(C) \wedge score(C\setminus c) \geq score(C\setminus c_{p}), \forall c_{p} \in C: c_{p} \neq c$}{
+					$C = C \setminus c$\;
+					$clean =$ false\;
+					break\;
+				}
+			}
+		}	
+	}
+	\textcolor{teal}{/* STEP 9 Refine subspace cluster approximations */\;}
+	\ForEach {approximation $C \in subspace$-$cluster$-$approximations$}{
+		$union(C) = \bigcup c_{i} \in C$ // union of all base-clusters in C\;
+		$subspace(C) = \bigcup$ getSubspace$(c_{i}) \in C$ // corresponding dimensions\;
+		$C_{sub} =$ clusteringMethod$(union(C), subspace(C))$\;
+		$clustering = clustering \cup C_{sub}$\;
+	}
+\end{algorithm}
+
+The preclustering starts with identifying all 1-dimensional clusters, called base-clusters, (step 1 Algorithm~\ref{alg:fires}). Since FIRES is a generic framework, this could be done by applying any clustering method like k-means, DBSCAN, CLIQUE or others. FIRES then removes all base-clusters with cardinality less than 25\% of the average size of all base-clusters (step 2 Algorithm~\ref{alg:fires}) as FIRES do not consider these small base-clusters to be parts of clusters in subspaces of higher-dimensionality.
+
+After removing unpromising base-clusters, FIRES starts the process of generating subspace cluster approximations. This major step represents the actual clustering idea behind the FIRES algorithm which is grouping similar base-clusters lying in different dimensions to generate approximations of subspace cluster of form $approximation_{i} = (C_{i}, S_{i})$, for $C_{i} = \{c_{1},\ldots,c_{k}\}$ being a set of similar base-clusters and $S_{i} = \{s_{1},\ldots,s_{k}\}$ the corresponding dimensions in which the base-clusters exist. But before searching for similar base-clusters, FIRES first splits untruly similar base-clusters that have objects from overlapped clusters and will split in higher-dimensional subspaces (step 3 Algorithm~\ref{alg:fires}) in order to avoid merging them with perfectly matched clusters. This is done by checking whether the intersection between a base-cluster and its most-similar-cluster together with the difference are greater than two-thirds of the average size of all base-clusters. One base-cluster could split multiple times, each into intersection and difference.
+
+Now that all base-clusters are ready to be merged, Fires searches for each base-cluster its $k$-most-similar-clusters that share objects with it the most (step 4 Algorithm~\ref{alg:fires}). Next FIRES computes for each base-cluster its best-merge-candidates set that contains other base-clusters having at least $\mu$-most-similar-clusters in common(step 5 Algorithm~\ref{alg:fires}) and finally FIRES computes the set of best-merge-clusters that contains base-clusters having at least $minClu$ best-merge-candidates (step 6 Algorithm~\ref{alg:fires}).To generate the subspace cluster approximations, FIRES merges every two best-merge-clusters with their best-merge-candidates together if both are best-merge-candidates of each other (step 7 Algorithm~\ref{alg:fires}).
+
+Since subspace cluster approximations are created based on information of the base-clusters, they can differ from clusters that might be found when applying a traditional clustering algorithm to each subspace directly, due to the fact that clusters' members and size usually do not remain the same while increasing dimensionality. Therefore, the algorithm provides an optional postprocessing step that improves the quality of the created approximations and refines them to their final form.
+
+This step involves first removing base-clusters from approximations if they decrease the number of objects shared by all base-clusters in the approximations(i.e. not that similar to other base-clusters in the set) (step 8 Algorithm~\ref{alg:fires}) and second applying the same clustering method used in (step 1 Algorithm~\ref{alg:fires}) to identify base-clusters on the union of base-clusters within the approximations (step 9 Algorithm~\ref{alg:fires}). 
+
+FIRES expects clusters to be differently dense in relation to the dimensionality of the subspaces in which they exist. Therefore, it uses an adaptive density threshold and adjusts it with respect to the subspace dimensionality. For example, if DBSCAN was chosen as a clustering method in (step 1 Algorithm~\ref{alg:fires}) then the authors suggest to redefine $\varepsilon$ for each subspace cluster in (step 9 Algorithm~\ref{alg:fires}) as $\varepsilon =  \frac{\varepsilon_{1}n}{\sqrt[d]{n}}$ where $d$ is the subspace cluster dimensioality, $\varepsilon_{1}$ is the density threshold used in the preclustering (step 1 Algorithm~\ref{alg:fires}) and $n$ is the number on points in the dataset.
+
+In order to better understand the clustering model of FIRES, in particularly how subspace cluster approximations are generated, we will demonstrate an example using directed graphs. This example is based on information generated by applying FIRES on a synthetic dataset with 1000 objects and 8 dimensions. The dataset includes 7 subspace clusters of various dimensionalities between 2--5.
+
+Using DBSCSN with parameters $\varepsilon = 0.2$ and $minPts = 6$ as the clustering method, FIRES has detected 32 base-clusters indexed from 0--31. The vertices of the graph represent these base-clusters and the edges represent the $k$-most-similar-clusters.
+\begin{figure}[h]
+	\centering
+	\includegraphics[clip, trim=1cm 4.5cm 1cm 3.2cm, width=1.0\textwidth]{bilder/kEqual2}
+	\caption{Example of best merge clusters and their best merge candidates. $k = 2, \mu = 2$ and $minClu = 2.$}
+	\label{fig:kEqual2}
+\end{figure}
+
+In Figure~\ref{fig:kEqual2} every node has two outgoing edges since we chose $k = 2$. Blue clusters 1, 14 and 18 share their 2-most-similar-clusters, namely clusters 8 and 19, and therefore they are best-merge-candidates of each other, since they have at least $\mu$-similar-clusters in common. This also applies to the pink clusters 0, 2, 19 and 27 as they all share at least 2-most-similar-clusters 15 and 23.
+
+Colorful nodes form the set of best-merge-clusters because each one has at least $minClu$-best-merge-candidates. On the other hand, clusters 26 and 30 are best-merge-candidates of each other since they fulfill the condition of sharing $\mu$-similar-clusters but they are not part of the best-merge-clusters since each has only one best-merge-candidate. The same goes for clusters 8, 31 with the green edges, clusters 10, 17 with the orange edges and clusters 20, 28 with the red edges.
+
+To build the subspace cluster approximations, FIRES checks every possible pair of the best-merge-clusters (i.e. colorful nodes) if they are best-merge-candidates of each other (i.e. have the same color) and if this is the case, FIRES groups both best-merge-clusters with their best-merge-candidates together. So, in this example, we have two subspace cluster approximations. First one consists of clusters (1, 14, 18) and the second on of clusters (0, 2, 19, 27). For each approximation, the points within the clusters are merged and reclustered in the corresponding subspaces. For example, if the base-clusters 1, 14, 18 exist in dimensions $a, b ,c$ respectively, where $a\neq b\neq c, a\neq c$, then their merged points are clustered in subspace $(a,b,c)$ to generate a subspace cluster of dimensionality 3.
+
+As we mentioned, there are 7 subspace clusters within the dataset, which means there should be 7 groups of different colors and not only 2 as in Figure~\ref{fig:kEqual2}. So we reapplied FIRES to the dataset with parameter $k = 3$. The results are shown in Figure~\ref{fig:kEqual3} below.
+\begin{figure}[h]
+	\centering
+	\includegraphics[clip, trim=1cm 4cm 1cm 5.2cm, width=1.0\textwidth]{bilder/kEqual3}
+	\caption{Example of best merge clusters and their best merge candidates. $k = 3, \mu = 2$ and $minClu = 2.$}
+	\label{fig:kEqual3}
+\end{figure}
+
+Every node has 3 outgoing edges representing its 3-most-similar-clusters. Now more clusters have at least $minClu$-best-merge-candidates and therefore, more clusters are in the set of best-merge-clusters. Even though cluster 21(on the right side) is not a best-merge-cluster since it has only cluster 29 as its best-merge-candidate, it still appears in the subspace cluster approximations and will be merged with the other cyan clusters, because it is a best-merge-candidate of cluster 29. This also applies to clusters 4, 12, 30 and 31, except they will be merged with other clusters than the cyan ones, since they are best-merge-candidates of clusters 2, 1, 26 and 8 respectively. We know this result is incorrect since there are nine pink colored clusters that should form a subspace cluster of dimensionality nine, which is impossible in a dataset with eight dimensions. This leads to the fact that at least two clusters of the nine pink clusters are in the same dimension. Here clusters 0 and 2 are in the same dimension, as well as clusters 5 and 6. Merging these clusters together is incorrect, since in hard clustering, no clusters in the same subspace can be similar.
+
+Finally, since the dataset is artificially generated and the hidden subspace clusters are known, we would like to show the best result we could achieve and the expected subspace cluster approximations in Figure~\ref{fig:bestResult} and Figure~\ref{fig:groundTruth} respectively.
+
+\begin{figure}[H]
+	\centering
+	\begin{minipage}{0.5\textwidth}
+		\centering
+		\includegraphics[width=0.9\textwidth]{bilder/bestResult}
+		\caption{$k = 4, \mu = 3$ and $minClu = 1.$}
+		\label{fig:bestResult}
+	\end{minipage}\hfill
+	\begin{minipage}{0.5\textwidth}
+		\centering
+		\includegraphics[width=0.9\textwidth]{bilder/groundTruth}
+		\caption{Desired result.}
+		\label{fig:groundTruth}
+	\end{minipage}
+\end{figure}  
+
+In Figure~\ref{fig:bestResult} we kept only the edges needed for explanation and removed the rest to keep it visible.
+
+First thing to notice is the pink-colored base-clusters. FIRES keeps on grouping them together as a mergerable-set although the dataset does not include this information. After examining these base-clusters, we found out that each consists of the remaining objects in the dataset that are not in any of the artificially-generated subspace clusters.
+
+FIRES failed to detect the orange cluster in the full subspace dimensionality 4. As we can see in Figure~\ref{fig:bestResult}, cluster 13 is not colored orange because it does not have at least 3-most-similar-clusters in common with clusters 10, 17, 22. In addition, FIRES failed to detect the yellow subspace cluster.
+
+As we did for SUBCLU, we would like to mention some unclarities in the paper of FIRES \citep{fires}:
+
+\begin{itemize}
+	\item The authors made it clear that a base-cluster may be split multiple times (step 3 Algorithm~\ref{alg:fires}). However, it is unclear whether we split clusters that satisfy the conditions directly or whether we mark them for split and do it later after iterating over all base-clusters. Also, Whether we recompute $s_{avg}$ after each split or if it is recomputed at all is not discussed.
+	\item When computing the $k$-most-similar-clusters (step 4 Algorithm~\ref{alg:fires}). It is unclear which $k$-most-similar-clusters to consider in case there are more than $k$ similar ones. We think in such a case the right approach is to choose the $k$ ones having the least difference, since they are more similar than others.  
+\end{itemize}
+Also some remarks about FIRES:
+\begin{itemize}
+	\item The resulting clustering of FIRES is heavily dependent on the input parameters. As we saw in the example in Figure~\ref{fig:kEqual2} and Figure~\ref{fig:kEqual3}, changing one hyperparameter $k, \mu$ or $minClu$ leads to significantly different results. Besides these three hyperparameters, we also have the input parameters of the used clustering method. For example, if DBSCAN is chosen, there will be five parameters: $k, \mu, minClu, \varepsilon$ and $minPts$ that can affect the output. So tuning these hyperparameters to find the optimal setting for each dataset is problematic.
+	\item Merging clusters that are detected in the same dimension is not avoidable. As we saw in Figure~\ref{fig:kEqual3}, clusters 0, 2 and 5, 6 are in the same subspace cluster approximation. None of these clusters will be removed in (step 8 Algorithm~\ref{alg:fires}), because grouping these clusters together decreases the quality of the approximation $score(C)$ down to zero, since it is calculated based on the intersection between all base-clusters within the approximation. $score(C\setminus c)$ will also be equal zero because no matter which base-cluster we exclude, there will always be two clusters with no intersection between them. Thus, the condition is never satisfied. 
+	\item Imprecise and impure base-clusters that have some noise points or  points from other classes besides the true ones are penalized even though it is normal for clusters to have some incorrectly assigned points. This happens because FIRES uses the intersection between clusters as a similarity measure. An Example is cluster 13 in Figure~\ref{fig:bestResult}. It has a greater intersection with clusters 4 and 23 than with clusters 10 and 17. Therefore, it fails to have at least $\mu$-most-similar-clusters in common with the other orange clusters and it will not be merged with them. Due to this behavior, some clusters are not detected in the desired subspaces but in lower-dimensional projections of them.
+	\item True base-clusters might be merged with big base-clusters consisting of the remaining objects in the dataset that are not in any of the artificially-generated clusters. For example, clusters 2 and 6 in Figure~\ref{fig:kEqual3}. Like other big base-clusters, both 2 and 6 have clusters 15 and 23 in their $k$-most-similar-clusters set and therefore, they will be merged with them. This happens because the similarity function based on the intersection between clusters prefers big clusters that have a lot of points.  
+	\item Since there are no restrictions about the choice of the $k$-most-similar-clusters to consider in case there are more than $k$ ones, either the first $k$ ones or the last $k$ ones are chosen. In both cases, shuffling the attributes of a dataset can lead to different clusterings.  Therefore, FIRES is not independent with respect to the order of attributes.
+	\item The suggested redefinition of $\varepsilon =  \frac{\varepsilon_{1}n}{\sqrt[d]{n}}$ for the postprocessing step in the case of choosing DBSCAN as a clustering method is questionable. Because the recomputed value could be very high and therefore, subspace clusters could merge. For example, if we have a dataset with 1000 observations, a subspace cluster of dimensionality 5 and we choose $\varepsilon_{1} = 0.5$ then the new $\varepsilon$ will be $\varepsilon = \frac{0.5 \cdot 1000}{\sqrt[5]{1000}} \approx 125$ which is too high compared to $\varepsilon_{1}$.
+	\item After pruning all subspace cluster approximations (step 8 Algorithm~\ref{alg:fires}) we need to search for duplicates and strict subsets and remove them. Because according to the monotonicity assumption, strict subsets represent the clusters in lower-dimensional projections of the subspaces and thus can be removed as redundancy.
+\end{itemize}

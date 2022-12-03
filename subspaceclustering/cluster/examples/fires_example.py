@@ -59,7 +59,7 @@ def cluster_glass():
     evaluate_clustering(214, 9, true_clusters, found_clusters)
 
 
-def cluster_D05():
+def cluster_D05(print_clusters = False, print_evaluation = True):
     """Reproduces Fires-related values in table 1 in the thesis."""
     true_clusters = {
         (0, 1, 4): [range(0, 302)],
@@ -78,13 +78,14 @@ def cluster_D05():
     found_clusters = fires_instance.get_clusters()
     # uncomment the below line to print all clustering information
     # print_clustering(fires_instance)
-    # uncomment the below line to print found clusters in the wanted subspaces
-    # for subspace in list(true_clusters):
-    # print(subspace, found_clusters.get(subspace, []))
-    evaluate_clustering(1595, 5, true_clusters, found_clusters)
+    if print_clusters:
+        for subspace in list(true_clusters):
+          print(subspace, found_clusters.get(subspace, []))
+    if print_evaluation:
+        evaluate_clustering(1595, 5, true_clusters, found_clusters)
 
 
-def cluster_D10():
+def cluster_D10(print_clusters = False, print_evaluation = True):
     """Reproduces Fires-related values in table 2 in the thesis."""
     true_clusters = {
         (1, 2, 3, 5, 9): [range(0, 300)],
@@ -106,10 +107,11 @@ def cluster_D10():
     found_clusters = fires_instance.get_clusters()
     # uncomment the below line to print all clustering information
     # print_clustering(fires_instance)
-    # uncomment the below line to print found clusters in the wanted subspaces
-    # for subspace in list(true_clusters):
-    #   print(subspace, found_clusters.get(subspace, []))
-    evaluate_clustering(1595, 10, true_clusters, found_clusters)
+    if print_clusters:
+        for subspace in list(true_clusters):
+          print(subspace, found_clusters.get(subspace, []))
+    if print_evaluation:
+      evaluate_clustering(1595, 10, true_clusters, found_clusters)
 
 
 def cluster_D15():
@@ -134,8 +136,8 @@ def cluster_D15():
     fires_instance.process()
     found_clusters = fires_instance.get_clusters()
     # print_clustering(fires_instance)
-    for subspace in list(true_clusters):
-        print(subspace, found_clusters.get(subspace, []))
+    #for subspace in list(true_clusters):
+     #   print(subspace, found_clusters.get(subspace, []))
     evaluate_clustering(1599, 15, true_clusters, found_clusters)
 
 
@@ -782,8 +784,8 @@ def cluster_4d_500n_4sc():
     print_clustering(fires_instance)
 
 
-def cluster_8d_1000n_7sc():
-    """Can reproduce figure 1,2,3,4 in the thesis."""
+def cluster_8d_1000n_7sc(mu, k, minClu):
+    """Can reproduce figure 1,2,3 in the thesis."""
     true_clusters = {
         (1, 2, 3): [range(250)],
         (5, 6, 7): [range(200, 340)],
@@ -808,12 +810,39 @@ def cluster_8d_1000n_7sc():
             [range(890, 950), (0, 3, 4, 6, 7), 0.3],
         ],
     )
+    # to shuffle the columns of the dataset
+    # np.random.shuffle(samples.T)
     clustering_method = Clustering_By_dbscan(0.2, 6)
-    fires_instance = fires(samples, 3, 4, 1, clustering_method)
+    fires_instance = fires(samples, mu, k, minClu, clustering_method)
     fires_instance.process()
+    print('Base-clusters:')
+    for (
+        cluster_index,
+        dimension,
+    ) in fires_instance.get_baseCluster_to_dimension().items():
+        cluster = fires_instance.get_pruned_C1()[cluster_index]
+        print(
+            "cluster_index ",
+            cluster_index,
+            "dim ",
+            dimension,
+            "cluster_size ",
+            len(cluster),
+        )
+        print(sorted(cluster), "\n")
+    print("k most similar clusters", "\n", fires_instance.get_k_most_similar_clusters())
+    print("best merge candidates", "\n", fires_instance.get_best_merge_candidates())
+    print("best merge clusters", "\n", fires_instance.get_best_merge_clusters())
+    print(
+        "pruned subspace cluster approximations",
+        "\n",
+        fires_instance.get_subspace_cluster_approximations(),
+        "\n",
+    )
     found_clusters = fires_instance.get_clusters()
-    evaluate_clustering(1000, 8, true_clusters, found_clusters)
-    print_clustering(fires_instance)
+    print('Found clusters(only in the desired subspaces):')
+    for subspace in list(true_clusters):
+        print(subspace, found_clusters.get(subspace, []))
 
 
 def cluster_16d_2000n_6sc():
@@ -935,5 +964,5 @@ def evaluate_clustering(db_size, db_dimensionality, true_clusters, found_cluster
 # cluster_2d_100n_2sc()
 # cluster_3d_250n_3sc()
 # cluster_4d_500n_4sc()
-# cluster_8d_1000n_7sc()
+# cluster_8d_1000n_7sc(3,4,1)
 # cluster_16d_2000n_6sc()

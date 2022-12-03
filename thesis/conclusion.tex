@@ -1,0 +1,8 @@
+\section{Conclusion and Future Work}\raggedbottom
+It is known in machine learning that it is not simple to say an algorithm is definitively better than another one, because algorithms could behave differently on different kinds of problems. But based on the experiments we did, we can make a judgment on both algorithms. 
+
+Regarding SUBCLU, we can say that it produces clustering results of good quality. However, the efficiency of the algorithm is degraded at the expense of the quality of the clustering. Therefore, SUBCLU is biased towards low dimensionality and is not feasible for solving the problem for which it was developed, since we are aiming at clustering high-dimensional data with up to several hundreds of dimensions. 
+
+FIRES, on the other hand, is much faster. Therefore, it is more qualified for the problem of clustering high dimensional data. However, FIRES is difficult to use due to its strong dependency on its hyperparameters, which are not few and not easy to tune, which makes it most likely for clustering results of FIRES to not live up to the user's expectations.
+
+We think both algorithms can be further improved. For example, by trying to modify FIRES in a way that makes it depend on fewer hyperparameters. For SUBCLU, one could try modifying the algorithm to consider fewer subspaces in order to improve the algorithm's efficiency. A redundancy removal technique would be beneficial too. Developing a fuzzy variant of SUBCLU and FIRES could be done in future research.
